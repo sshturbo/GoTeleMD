@@ -323,14 +323,14 @@ func processText(input string, safe bool, safetyLevel int) string {
 				} else if boldMatch[4] != "" { // __text__
 					return "*" + strings.TrimSpace(boldMatch[4]) + "*"
 				} else if boldMatch[6] != "" { // *text*
-					return "*" + strings.TrimSpace(boldMatch[6]) + "*" // Preserva * como negrito
+					return "*" + strings.TrimSpace(boldMatch[6]) + "*"
 				}
 				return b
 			})
 			linkText = italicPattern.ReplaceAllStringFunc(linkText, func(i string) string {
 				italicMatch := italicPattern.FindStringSubmatch(i)
 				if italicMatch[2] != "" {
-					return "_" + strings.TrimSpace(italicMatch[2]) + "*" // Mudança para _italic* em vez de _italic_
+					return "_" + strings.TrimSpace(italicMatch[2]) + "_" // Corrigido: mudado para _italic_ em vez de _italic*
 				}
 				return i
 			})
@@ -424,7 +424,7 @@ func escapeNonFormatChars(text string) string {
 
 func escapeSpecialCharsInText(text string) string {
 	escaped := text
-	specialChars := []string{"#", "+", "-", "=", ".", "!", "(", ")"}
+	specialChars := []string{"#", "+", "-", "=", "|", ".", "!", "(", ")", "{", "}"} // Adicionado | e {} à lista
 	for _, char := range specialChars {
 		escaped = strings.ReplaceAll(escaped, char, "\\"+char)
 	}

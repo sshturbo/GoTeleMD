@@ -100,33 +100,28 @@ func breakLongText(input string, limit int) []string {
 		}
 	}
 
-	// Separar por blocos naturais (parágrafos ou blocos de código)
-	blocks := tokenize(input) // Usar tokenize para identificar blocos
+	paragraphs := strings.Split(input, "\n\n")
 	currentPart := strings.Builder{}
 
-	for _, block := range blocks {
-		blockText := renderBlock(block, false, false, false, SAFETYLEVELBASIC)
-		blockLen := utf8.RuneCountInString(blockText)
+	for _, paragraph := range paragraphs {
+		paragraphLen := utf8.RuneCountInString(paragraph)
 
-		if blockLen > limit {
-			// Se o bloco for maior que o limite, dividi-lo em partes menores
-			parts := splitLongLine(blockText, limit)
+		if paragraphLen > limit {
 			if currentPart.Len() > 0 {
 				result = append(result, currentPart.String())
 				currentPart.Reset()
 			}
+			parts := splitLongLine(paragraph, limit)
 			result = append(result, parts...)
-		} else if currentPart.Len()+blockLen+2 > limit {
-			// Se adicionar o bloco exceder o limite, fechar a parte atual
+		} else if currentPart.Len()+paragraphLen+2 > limit {
 			result = append(result, currentPart.String())
 			currentPart.Reset()
-			currentPart.WriteString(blockText)
+			currentPart.WriteString(paragraph)
 		} else {
-			// Adicionar o bloco à parte atual
 			if currentPart.Len() > 0 {
 				currentPart.WriteString("\n\n")
 			}
-			currentPart.WriteString(blockText)
+			currentPart.WriteString(paragraph)
 		}
 	}
 
@@ -288,18 +283,10 @@ func renderBlock(b Block, alignTableCols, ignoreTableSeparators bool, safeMode b
 	switch b.Type {
 	case BlockCode:
 		lines := strings.Split(b.Content, "\n")
-		// Remover linhas vazias ou delimitadores isolados
-		var contentLines []string
-		for _, line := range lines {
-			trimmed := strings.TrimSpace(line)
-			if trimmed != "```" && trimmed != "" {
-				contentLines = append(contentLines, line)
-			}
+		if len(lines) > 2 {
+			return "```\n" + strings.Join(lines[1:len(lines)-1], "\n") + "\n```"
 		}
-		if len(contentLines) == 0 {
-			return "" // Evitar blocos de código vazios
-		}
-		return "```\n" + strings.Join(contentLines, "\n") + "\n```"
+		return b.Content
 	case BlockText:
 		return processText(b.Content, safeMode, safetyLevel)
 	case BlockTable:
@@ -318,23 +305,17 @@ func renderBlock(b Block, alignTableCols, ignoreTableSeparators bool, safeMode b
 
 func processText(input string, safe bool, safetyLevel int) string {
 	if safe && safetyLevel >= SAFETYLEVELSTRICT {
-		return escapeSpecialChars(input) // Escapa tudo em SAFETYLEVELSTRICT
-	}
-
-	text := input
-	// Sempre processar formatação inline, independentemente do nível de segurança
-	text = processInlineFormatting(text)
-
-	if safetyLevel == SAFETYLEVELNONE {
-		return text // Não escapa caracteres especiais, apenas aplica formatação
+		return escapeSpecialChars(input)
 	}
 
 	if safetyLevel <= SAFETYLEVELBASIC {
+		text := input
+		text = processInlineFormatting(text)
 		text = linkPattern.ReplaceAllStringFunc(text, func(m string) string {
 			match := linkPattern.FindStringSubmatch(m)
 			linkText := match[1] // Texto original do link
 
-			// Processar formatação dentro do link
+			// Processar formatação manualmente para preservar * como negrito
 			linkText = boldPattern.ReplaceAllStringFunc(linkText, func(b string) string {
 				boldMatch := boldPattern.FindStringSubmatch(b)
 				if boldMatch[2] != "" { // **text**
@@ -342,30 +323,28 @@ func processText(input string, safe bool, safetyLevel int) string {
 				} else if boldMatch[4] != "" { // __text__
 					return "*" + strings.TrimSpace(boldMatch[4]) + "*"
 				} else if boldMatch[6] != "" { // *text*
-					return "*" + strings.TrimSpace(boldMatch[6]) + "*"
+					return "*" + strings.TrimSpace(boldMatch[6]) + "*" // Preserva * como negrito
 				}
 				return b
 			})
 			linkText = italicPattern.ReplaceAllStringFunc(linkText, func(i string) string {
 				italicMatch := italicPattern.FindStringSubmatch(i)
 				if italicMatch[2] != "" {
-					return "_" + strings.TrimSpace(italicMatch[2]) + "_"
+					return "_" + strings.TrimSpace(italicMatch[2]) + "*" // Mudança para _italic* em vez de _italic_
 				}
 				return i
 			})
 
-			// Escapar caracteres especiais dentro do texto do link, exceto formatação
-			linkText = escapeSpecialCharsInText(linkText)
 			return fmt.Sprintf("[%s](%s)", linkText, match[2])
 		})
 
 		if !safe {
-			text = escapeNonFormatChars(text) // Escapa caracteres especiais fora de formatação
+			text = escapeNonFormatChars(text)
 		}
 		return text
 	}
 
-	return escapeSpecialChars(input) // Fallback para SAFETYLEVELSTRICT
+	return escapeSpecialChars(input)
 }
 
 func processInlineFormatting(text string) string {
@@ -445,8 +424,7 @@ func escapeNonFormatChars(text string) string {
 
 func escapeSpecialCharsInText(text string) string {
 	escaped := text
-	// Caracteres especiais que precisam ser escapados em SAFETYLEVELBASIC, excluindo formatação (*, _, `)
-	specialChars := []string{"#", "+", "-", "=", "|", "!", "(", ")", "{", "}", "."}
+	specialChars := []string{"#", "+", "-", "=", ".", "!", "(", ")"}
 	for _, char := range specialChars {
 		escaped = strings.ReplaceAll(escaped, char, "\\"+char)
 	}

@@ -100,28 +100,33 @@ func breakLongText(input string, limit int) []string {
 		}
 	}
 
-	paragraphs := strings.Split(input, "\n\n")
+	// Separar por blocos naturais (parágrafos ou blocos de código)
+	blocks := tokenize(input) // Usar tokenize para identificar blocos
 	currentPart := strings.Builder{}
 
-	for _, paragraph := range paragraphs {
-		paragraphLen := utf8.RuneCountInString(paragraph)
+	for _, block := range blocks {
+		blockText := renderBlock(block, false, false, false, SAFETYLEVELBASIC)
+		blockLen := utf8.RuneCountInString(blockText)
 
-		if paragraphLen > limit {
+		if blockLen > limit {
+			// Se o bloco for maior que o limite, dividi-lo em partes menores
+			parts := splitLongLine(blockText, limit)
 			if currentPart.Len() > 0 {
 				result = append(result, currentPart.String())
 				currentPart.Reset()
 			}
-			parts := splitLongLine(paragraph, limit)
 			result = append(result, parts...)
-		} else if currentPart.Len()+paragraphLen+2 > limit {
+		} else if currentPart.Len()+blockLen+2 > limit {
+			// Se adicionar o bloco exceder o limite, fechar a parte atual
 			result = append(result, currentPart.String())
 			currentPart.Reset()
-			currentPart.WriteString(paragraph)
+			currentPart.WriteString(blockText)
 		} else {
+			// Adicionar o bloco à parte atual
 			if currentPart.Len() > 0 {
 				currentPart.WriteString("\n\n")
 			}
-			currentPart.WriteString(paragraph)
+			currentPart.WriteString(blockText)
 		}
 	}
 
@@ -283,10 +288,18 @@ func renderBlock(b Block, alignTableCols, ignoreTableSeparators bool, safeMode b
 	switch b.Type {
 	case BlockCode:
 		lines := strings.Split(b.Content, "\n")
-		if len(lines) > 2 {
-			return "```\n" + strings.Join(lines[1:len(lines)-1], "\n") + "\n```"
+		// Remover linhas vazias ou delimitadores isolados
+		var contentLines []string
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if trimmed != "```" && trimmed != "" {
+				contentLines = append(contentLines, line)
+			}
 		}
-		return b.Content
+		if len(contentLines) == 0 {
+			return "" // Evitar blocos de código vazios
+		}
+		return "```\n" + strings.Join(contentLines, "\n") + "\n```"
 	case BlockText:
 		return processText(b.Content, safeMode, safetyLevel)
 	case BlockTable:

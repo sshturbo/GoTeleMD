@@ -33,7 +33,7 @@ func TestTgMarkdown(t *testing.T) {
 
 		// Links
 		{"Link simples", "[link text](https://example.com)", "[link text](https://example.com)", false, SAFETYLEVELBASIC},
-		{"Link com formatação", "[**Bold** and _italic_](https://example.com)", "[*Bold* and _italic*](https://example.com)", false, SAFETYLEVELBASIC},
+		{"Link com formatação", "[**Bold** and _italic_](https://example.com)", "[*Bold* and _italic_](https://example.com)", false, SAFETYLEVELBASIC},
 
 		// Listas
 		{"Lista não ordenada", "- Item 1\n- Item 2", "• Item 1\n• Item 2", false, SAFETYLEVELBASIC},
@@ -54,6 +54,15 @@ func TestTgMarkdown(t *testing.T) {
 
 		// Texto simples com caracteres especiais
 		{"Texto simples com caracteres especiais", "Hello #world! (test)", "Hello \\#world\\! \\(test\\)", false, SAFETYLEVELBASIC},
+
+		// Novo teste para múltiplos caracteres especiais
+		{
+			name:        "Texto com múltiplos caracteres especiais",
+			input:       "Test # + - = | ! * _ [ ] ( ) { } .",
+			expected:    "Test \\# \\+ \\- \\= \\| \\! * _ [ ] \\( \\) \\{ \\} \\.", // Não escapa *, _, [, ]
+			safeMode:    false,
+			safetyLevel: SAFETYLEVELBASIC,
+		},
 
 		// Modo Seguro
 		{"Nível de segurança estrito", "**bold** and _italic_", "\\*\\*bold\\*\\* and \\_italic\\_", true, SAFETYLEVELSTRICT},

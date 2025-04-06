@@ -305,17 +305,23 @@ func renderBlock(b Block, alignTableCols, ignoreTableSeparators bool, safeMode b
 
 func processText(input string, safe bool, safetyLevel int) string {
 	if safe && safetyLevel >= SAFETYLEVELSTRICT {
-		return escapeSpecialChars(input)
+		return escapeSpecialChars(input) // Escapa tudo em SAFETYLEVELSTRICT
+	}
+
+	text := input
+	// Sempre processar formatação inline, independentemente do nível de segurança
+	text = processInlineFormatting(text)
+
+	if safetyLevel == SAFETYLEVELNONE {
+		return text // Não escapa caracteres especiais, apenas aplica formatação
 	}
 
 	if safetyLevel <= SAFETYLEVELBASIC {
-		text := input
-		text = processInlineFormatting(text)
 		text = linkPattern.ReplaceAllStringFunc(text, func(m string) string {
 			match := linkPattern.FindStringSubmatch(m)
 			linkText := match[1] // Texto original do link
 
-			// Processar formatação manualmente para preservar * como negrito
+			// Processar formatação dentro do link
 			linkText = boldPattern.ReplaceAllStringFunc(linkText, func(b string) string {
 				boldMatch := boldPattern.FindStringSubmatch(b)
 				if boldMatch[2] != "" { // **text**
@@ -323,28 +329,30 @@ func processText(input string, safe bool, safetyLevel int) string {
 				} else if boldMatch[4] != "" { // __text__
 					return "*" + strings.TrimSpace(boldMatch[4]) + "*"
 				} else if boldMatch[6] != "" { // *text*
-					return "*" + strings.TrimSpace(boldMatch[6]) + "*" // Preserva * como negrito
+					return "*" + strings.TrimSpace(boldMatch[6]) + "*"
 				}
 				return b
 			})
 			linkText = italicPattern.ReplaceAllStringFunc(linkText, func(i string) string {
 				italicMatch := italicPattern.FindStringSubmatch(i)
 				if italicMatch[2] != "" {
-					return "_" + strings.TrimSpace(italicMatch[2]) + "*" // Mudança para _italic* em vez de _italic_
+					return "_" + strings.TrimSpace(italicMatch[2]) + "_"
 				}
 				return i
 			})
 
+			// Escapar caracteres especiais dentro do texto do link, exceto formatação
+			linkText = escapeSpecialCharsInText(linkText)
 			return fmt.Sprintf("[%s](%s)", linkText, match[2])
 		})
 
 		if !safe {
-			text = escapeNonFormatChars(text)
+			text = escapeNonFormatChars(text) // Escapa caracteres especiais fora de formatação
 		}
 		return text
 	}
 
-	return escapeSpecialChars(input)
+	return escapeSpecialChars(input) // Fallback para SAFETYLEVELSTRICT
 }
 
 func processInlineFormatting(text string) string {
@@ -424,7 +432,8 @@ func escapeNonFormatChars(text string) string {
 
 func escapeSpecialCharsInText(text string) string {
 	escaped := text
-	specialChars := []string{"#", "+", "-", "=", ".", "!", "(", ")"}
+	// Caracteres especiais que precisam ser escapados em SAFETYLEVELBASIC, excluindo formatação (*, _, `)
+	specialChars := []string{"#", "+", "-", "=", "|", "!", "(", ")", "{", "}", "."}
 	for _, char := range specialChars {
 		escaped = strings.ReplaceAll(escaped, char, "\\"+char)
 	}

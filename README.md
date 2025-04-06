@@ -16,7 +16,7 @@ Conversor de Markdown estilo GitHub para MarkdownV2 do Telegram, com suporte a:
 ## Instalação
 
 ```bash
-go get github.com/sshturbo/GoTeleMD
+go get github.com/sshturbo/GoTeleMD@v0.1.0
 ```
 
 ## Uso

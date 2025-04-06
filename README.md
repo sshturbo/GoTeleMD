@@ -16,13 +16,13 @@ Conversor de Markdown estilo GitHub para MarkdownV2 do Telegram, com suporte a:
 ## Instalação
 
 ```bash
-go get github.com/sshturbo/tgmarkdown
+go get github.com/sshturbo/GoTeleMD
 ```
 
 ## Uso
 
 ```go
-import "github.com/sshturbo/tgmarkdown"
+import "github.com/sshturbo/GoTeleMD"
 
 // Habilitar logs para debug (opcional)
 tgmarkdown.EnableLogs = true

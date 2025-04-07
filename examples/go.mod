@@ -2,7 +2,6 @@ module examples
 
 go 1.24.0
 
-require (
-	github.com/PaulSonOfLars/gotgbot/v2 v2.0.0-rc.31
-	github.com/sshturbo/GoTeleMD v0.1.6
-)
+require github.com/sshturbo/GoTeleMD v0.1.7
+
+require github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1

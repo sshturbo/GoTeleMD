@@ -61,13 +61,15 @@ func renderBlock(b internal.Block, alignTableCols, ignoreTableSeparators bool, s
 		if safetyLevel == internal.SAFETYLEVELSTRICT {
 			return formatter.ProcessText(b.Content, safetyLevel)
 		}
-		if strings.HasPrefix(b.Content, "```") && strings.HasSuffix(b.Content, "```") {
-			return b.Content
+		// Remove as marcações existentes se houver
+		content := b.Content
+		if strings.HasPrefix(content, "```") && strings.HasSuffix(content, "```") {
+			content = content[3 : len(content)-3]
 		}
-		if strings.TrimSpace(b.Content) == "" {
+		if strings.TrimSpace(content) == "" {
 			return "```\n```"
 		}
-		return "```\n" + b.Content + "\n```"
+		return "```\n" + content + "\n```"
 	case internal.BlockText:
 		return formatter.ProcessText(b.Content, safetyLevel)
 	case internal.BlockTable:

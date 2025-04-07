@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/PaulSonOfLars/gotgbot/v2"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	tgmarkdown "github.com/sshturbo/GoTeleMD"
 )
 
@@ -15,7 +15,6 @@ func init() {
 	tgmarkdown.EnableLogs = true
 	tgmarkdown.TruncateInsteadOfBreak = false
 }
-
 
 func (s *Service) escapeCodeTags(text string) (string, error) {
 	log.Printf("📝 Texto antes do escape: %s", text)
@@ -54,15 +53,16 @@ func main() {
 		chatID = 889168461
 	)
 
-	bot, err := gotgbot.NewBot(token, &gotgbot.BotOpts{})
+	bot, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
 		log.Fatalf("Erro ao criar bot: %v", err)
 	}
 
 	// Enviando mensagem
-	_, err = bot.SendMessage(chatID, resultado, &gotgbot.SendMessageOpts{
-		ParseMode: "MarkdownV2",
-	})
+	msg := tgbotapi.NewMessage(chatID, resultado)
+	msg.ParseMode = "MarkdownV2"
+
+	_, err = bot.Send(msg)
 	if err != nil {
 		log.Fatalf("Erro ao enviar mensagem: %v", err)
 	}

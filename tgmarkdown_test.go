@@ -102,7 +102,7 @@ func TestTgMarkdown(t *testing.T) {
 		{
 			name:        "Código inline em modo estrito",
 			input:       "Text with `code#with*special(chars)` inline",
-			expected:    "Text with \\`code#with\\*special\\(chars\\)\\` inline",
+			expected:    "Text with \\`code\\#with\\*special\\(chars\\)\\` inline",
 			safetyLevel: internal.SAFETYLEVELSTRICT,
 		},
 	}

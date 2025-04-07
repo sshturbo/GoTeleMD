@@ -100,8 +100,7 @@ resultado := tgmarkdown.Convert(texto, false, false, tgmarkdown.SAFETYLEVELBASIC
 ### Formatação
 ```go
 texto := "**Negrito** _itálico_ ~~riscado~~ [link](https://exemplo.com)"
-texto := "**Negrito** _itálico_ ~~riscado~~ [link](https://exemplo.com)"
-resultado := tgmarkdown.Convert(texto, false, false, true)
+resultado := tgmarkdown.Convert(texto, false, false, tgmarkdown.SAFETYLEVELBASIC)
 ```
 
 ### Mensagens Longas
@@ -109,6 +108,6 @@ A biblioteca quebra automaticamente mensagens longas respeitando o limite do Tel
 
 ```go
 textoLongo := strings.Repeat("Texto muito longo... ", 100)
-partes := tgmarkdown.Convert(textoLongo, false, false, true)
+partes := tgmarkdown.Convert(textoLongo, false, false, tgmarkdown.SAFETYLEVELBASIC)
 // Resultado será quebrado em partes menores que 4096 caracteres
 ```

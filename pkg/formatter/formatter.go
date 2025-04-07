@@ -8,6 +8,111 @@ import (
 	"github.com/sshturbo/GoTeleMD/pkg/utils"
 )
 
+func processCodeBlocks(text string) string {
+	var result strings.Builder
+	var inCodeBlock bool
+	var codeBlocks []string
+	var currentBlock strings.Builder
+
+	// Remover quebras de linha extras
+	text = strings.TrimSpace(text)
+	lines := strings.Split(text, "\n")
+
+	// Primeiro passo: identificar e armazenar blocos de código únicos
+	for _, line := range lines {
+		if strings.HasPrefix(line, "```") {
+			if inCodeBlock {
+				// Finaliza o bloco atual
+				codeBlocks = append(codeBlocks, currentBlock.String())
+				currentBlock.Reset()
+			}
+			inCodeBlock = !inCodeBlock
+			continue
+		}
+
+		if inCodeBlock {
+			currentBlock.WriteString(line + "\n")
+		}
+	}
+
+	// Remove blocos duplicados mantendo a ordem
+	seen := make(map[string]bool)
+	uniqueBlocks := make([]string, 0, len(codeBlocks))
+	for _, block := range codeBlocks {
+		if !seen[block] {
+			seen[block] = true
+			uniqueBlocks = append(uniqueBlocks, block)
+		}
+	}
+
+	// Segundo passo: reconstruir o texto com blocos únicos
+	inCodeBlock = false
+	blockIndex := 0
+	lastLineWasEmpty := false
+
+	for i, line := range lines {
+		isCodeBlockMarker := strings.HasPrefix(line, "```")
+
+		if isCodeBlockMarker {
+			if inCodeBlock {
+				// Finaliza o bloco atual
+				result.WriteString("```")
+				blockIndex++
+				if i < len(lines)-1 {
+					result.WriteString("\n")
+				}
+			} else if blockIndex < len(uniqueBlocks) {
+				// Evita quebras de linha extras antes do bloco de código
+				if i > 0 && !lastLineWasEmpty {
+					result.WriteString("\n")
+				}
+				result.WriteString("```")
+				if line != "```" {
+					result.WriteString(strings.TrimPrefix(line, "```"))
+				}
+				result.WriteString("\n")
+			}
+			inCodeBlock = !inCodeBlock
+			lastLineWasEmpty = false
+			continue
+		}
+
+		if inCodeBlock && blockIndex < len(uniqueBlocks) {
+			// Escapar caracteres especiais dentro do bloco de código
+			escaped := strings.NewReplacer(
+				"_", "\\_",
+				"*", "\\*",
+				"[", "\\[",
+				"]", "\\]",
+				"(", "\\(",
+				")", "\\)",
+				"~", "\\~",
+				"`", "\\`",
+				">", "\\>",
+				"#", "\\#",
+				"+", "\\+",
+				"-", "\\-",
+				"=", "\\=",
+				"|", "\\|",
+				"{", "\\{",
+				"}", "\\}",
+				".", "\\.",
+				"!", "\\!",
+			).Replace(line)
+			result.WriteString(escaped + "\n")
+			lastLineWasEmpty = line == ""
+		} else if !inCodeBlock {
+			result.WriteString(line)
+			if i < len(lines)-1 {
+				result.WriteString("\n")
+			}
+			lastLineWasEmpty = line == ""
+		}
+	}
+
+	return strings.TrimSpace(result.String())
+}
+
 func ProcessText(input string, safetyLevel int) string {
 	if safetyLevel == internal.SAFETYLEVELSTRICT {
 		// No modo strict, escapa tudo, incluindo as marcações ``` e conteúdo
@@ -15,35 +120,10 @@ func ProcessText(input string, safetyLevel int) string {
 	}
 
 	if safetyLevel == internal.SAFETYLEVELBASIC {
-		// Split por blocos de código primeiro
-		parts := strings.Split(input, "```")
-		for i := range parts {
-			if i%2 == 0 { // Fora do bloco de código
-				text := parts[i]
-				text = ProcessInlineFormatting(text)
-				text = processLinks(text)
-
-				var result strings.Builder
-				lastIndex := 0
-				for _, match := range utils.InlineCodePattern.FindAllStringSubmatchIndex(text, -1) {
-					prefix := text[lastIndex:match[0]]
-					result.WriteString(escapeNonFormatChars(prefix))
-					codeContent := text[match[2]:match[3]]
-					result.WriteString("`")
-					result.WriteString(escapeSpecialChars(codeContent)) // Escapa o conteúdo do código inline
-					result.WriteString("`")
-					lastIndex = match[1]
-				}
-				if lastIndex < len(text) {
-					result.WriteString(escapeNonFormatChars(text[lastIndex:]))
-				}
-				parts[i] = result.String()
-			} else { // Dentro do bloco de código
-				// Escapa o conteúdo dentro do bloco, mantendo as marcações ``` intactas
-				parts[i] = escapeSpecialChars(parts[i])
-			}
-		}
-		return strings.Join(parts, "```")
+		text := processCodeBlocks(input)
+		text = ProcessInlineFormatting(text)
+		text = processLinks(text)
+		return text
 	}
 
 	// Para SAFETYLEVEL_NONE

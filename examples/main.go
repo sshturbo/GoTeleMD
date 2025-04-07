@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/PaulSonOfLars/gotgbot/v2"
-	"github.com/sshturbo/GoTeleMD"
+	tgmarkdown "github.com/sshturbo/GoTeleMD"
 )
 
 // Service representa o serviço de mensagens
@@ -46,8 +46,8 @@ func main() {
 
 	// Configuração do bot com credenciais fixas
 	const (
-		token  = "6881016701:AAGXDGM-CILWRekjJg5C6ejSYlWL-9jY2II" // Substitua pelo seu token do bot
-		chatID = 889168461                                        // Substitua pelo seu chat_id
+		token  = "6881016701:AAGXDGM-CILWRekjJg5C6ejSYlWL-9jY2II"
+		chatID = 889168461
 	)
 
 	bot, err := gotgbot.NewBot(token, &gotgbot.BotOpts{})

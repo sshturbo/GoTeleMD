@@ -1,47 +1,61 @@
-# Título Principal
-	
-## Subtítulo
+Olá! 😉 Sem problemas! Aqui está o código HTML sem o atributo `lang="pt-BR"`:
 
-Este é um texto com *itálico* e **negrito**.
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minha Página</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f2f2f2;
+      color: #333;
+    }
+    header {
+      background-color: #4CAF50;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+    main {
+      padding: 2rem;
+    }
+    footer {
+      background-color: #ddd;
+      text-align: center;
+      padding: 1rem;
+      position: fixed;
+      width: 100%;
+      bottom: 0;
+    }
+  </style>
+</head>
+<body>
 
-| Coluna 1 | Coluna 2 |
-|----------|----------|
-| Valor 1  | Valor 2  |
-| Valor 3  | Valor 4  |
+  <header>
+    <h1>Bem-vindo à Minha Página</h1>
+  </header>
 
-Lista de itens:
-- Item 1
-- Item 2
-- Item 3
+  <main>
+    <h2>Sobre mim</h2>
+    <p>Olá! Esta é uma página simples criada em HTML. Você pode editar este texto e adicionar o que quiser.</p>
 
-```php
-<?php
+    <h2>Contato</h2>
+    <p>Email: exemplo@email.com</p>
+  </main>
 
-/**
- * Função para calcular o maior de dois números.
- *
- * @param int $num1 O primeiro número.
- * @param int $num2 O segundo número.
- * @return int O maior dos dois números.
- */
-function encontrarMaior(int $num1, int $num2): int {
-  if ($num1 > $num2) {
-    return $num1;
-  } else {
-    return $num2;
-  }
-}
+  <footer>
+    © 2025 Minha Página
+  </footer>
 
-// Exemplo de uso da função
-$numero1 = 10;
-$numero2 = 25;
-
-$maiorNumero = encontrarMaior($numero1, $numero2);
-
-echo "O maior número entre $numero1 e $numero2 é: " . $maiorNumero . "
-";
-
-?>
+</body>
+</html>
 ```
 
-> Esta é uma citação de exemplo
+Espero que ajude! 😊 Se precisar de mais alguma coisa, é só chamar! 😉
+
+*Orbi*

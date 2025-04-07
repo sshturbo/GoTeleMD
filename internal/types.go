@@ -27,7 +27,7 @@ const (
 const TelegramMaxLength = 4096
 
 var (
-	EnableLogs             = false
-	TruncateInsteadOfBreak = false
-	MaxWordLength          = 200
+	EnableLogs             *bool
+	TruncateInsteadOfBreak *bool
+	MaxWordLength          *int
 )

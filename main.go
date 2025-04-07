@@ -8,6 +8,27 @@ import (
 	"github.com/sshturbo/GoTeleMD/pkg/parser"
 )
 
+// Níveis de segurança para processamento de texto
+const (
+	SAFETYLEVELNONE   = internal.SAFETYLEVELNONE   // Sem segurança adicional
+	SAFETYLEVELBASIC  = internal.SAFETYLEVELBASIC  // Escapa caracteres especiais mantendo formatação
+	SAFETYLEVELSTRICT = internal.SAFETYLEVELSTRICT // Escapa todo o texto sem formatação
+)
+
+// Variáveis de configuração global
+var (
+	EnableLogs             = false // Ativa logs de debug
+	TruncateInsteadOfBreak = false // Trunca texto ao invés de quebrar em pontos seguros
+	MaxWordLength          = 200   // Tamanho máximo de palavra antes de forçar quebra
+)
+
+func init() {
+	// Sincroniza as configurações com o pacote internal
+	internal.EnableLogs = &EnableLogs
+	internal.TruncateInsteadOfBreak = &TruncateInsteadOfBreak
+	internal.MaxWordLength = &MaxWordLength
+}
+
 func Convert(input string, alignTableCols, ignoreTableSeparators bool, safetyLevel ...int) string {
 	level := internal.SAFETYLEVELBASIC
 	if len(safetyLevel) > 0 {

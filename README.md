@@ -36,11 +36,12 @@ texto := `# Título
 converted := tgmarkdown.Convert(texto, false, false, tgmarkdown.SAFETYLEVELBASIC)
 
 // Converter markdown com todas as opções explicadas
-converted = tgmarkdown.Convert(
-    texto,           // texto em markdown para converter
-    true,           // alignTableCols: alinhar colunas das tabelas
-    false,          // ignoreTableSeparators: manter linhas separadoras das tabelas
-    tgmarkdown.SAFETYLEVELBASIC, // nível de segurança
+// Forma correta de chamar a função
+texto := tgmarkdown.Convert(
+    input,          // string - texto de entrada
+    false,          // bool - alignTableCols
+    false,          // bool - ignoreTableSeparators
+    tgmarkdown.SAFETYLEVELBASIC, // int - nível de segurança
 )
 ```
 

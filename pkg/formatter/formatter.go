@@ -10,10 +10,12 @@ import (
 
 func ProcessText(input string, safetyLevel int) string {
 	if safetyLevel == internal.SAFETYLEVELSTRICT {
+		// No modo strict, escapa tudo, incluindo as marcações ``` e conteúdo
 		return escapeSpecialChars(input)
 	}
 
 	if safetyLevel == internal.SAFETYLEVELBASIC {
+		// Split por blocos de código primeiro
 		parts := strings.Split(input, "```")
 		for i := range parts {
 			if i%2 == 0 { // Fora do bloco de código
@@ -28,7 +30,7 @@ func ProcessText(input string, safetyLevel int) string {
 					result.WriteString(escapeNonFormatChars(prefix))
 					codeContent := text[match[2]:match[3]]
 					result.WriteString("`")
-					result.WriteString(escapeSpecialChars(codeContent))
+					result.WriteString(escapeSpecialChars(codeContent)) // Escapa o conteúdo do código inline
 					result.WriteString("`")
 					lastIndex = match[1]
 				}
@@ -37,10 +39,8 @@ func ProcessText(input string, safetyLevel int) string {
 				}
 				parts[i] = result.String()
 			} else { // Dentro do bloco de código
-				// Escapa TODOS os caracteres especiais dentro do bloco de código
-				if len(strings.TrimSpace(parts[i])) > 0 {
-					parts[i] = escapeSpecialChars(parts[i])
-				}
+				// Escapa o conteúdo dentro do bloco, mantendo as marcações ``` intactas
+				parts[i] = escapeSpecialChars(parts[i])
 			}
 		}
 		return strings.Join(parts, "```")

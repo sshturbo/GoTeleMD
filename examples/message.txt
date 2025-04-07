@@ -1,0 +1,23 @@
+# Título Principal
+	
+## Subtítulo
+
+Este é um texto com *itálico* e **negrito**.
+
+| Coluna 1 | Coluna 2 |
+|----------|----------|
+| Valor 1  | Valor 2  |
+| Valor 3  | Valor 4  |
+
+Lista de itens:
+- Item 1
+- Item 2
+- Item 3
+
+```go
+func exemplo() {
+    fmt.Println("Olá, mundo!")
+}
+```
+
+> Esta é uma citação de exemplo

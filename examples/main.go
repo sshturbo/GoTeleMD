@@ -16,9 +16,13 @@ func init() {
 	tgmarkdown.TruncateInsteadOfBreak = false
 }
 
+
 func (s *Service) escapeCodeTags(text string) (string, error) {
 	log.Printf("📝 Texto antes do escape: %s", text)
 
+	// Primeiro processar os blocos de código
+
+	// Depois aplicar o conversor geral do tgmarkdown
 	result := tgmarkdown.Convert(
 		text,
 		false,

@@ -8,6 +8,56 @@ import (
 	"github.com/sshturbo/GoTeleMD/pkg/utils"
 )
 
+func ProcessText(input string, safetyLevel int) string {
+	var processed string
+
+	if safetyLevel == internal.SAFETYLEVELSTRICT {
+		// No modo strict, escapa tudo, incluindo as marcações ``` e conteúdo
+		processed = escapeSpecialChars(input)
+	} else if safetyLevel == internal.SAFETYLEVELBASIC {
+		// Split por blocos de código primeiro
+		parts := strings.Split(input, "```")
+		for i := range parts {
+			if i%2 == 0 { // Fora do bloco de código
+				text := parts[i]
+				text = ProcessInlineFormatting(text)
+				text = processLinks(text)
+
+				var result strings.Builder
+				lastIndex := 0
+				for _, match := range utils.InlineCodePattern.FindAllStringSubmatchIndex(text, -1) {
+					prefix := text[lastIndex:match[0]]
+					result.WriteString(escapeNonFormatChars(prefix))
+					codeContent := text[match[2]:match[3]]
+					result.WriteString("`")
+					result.WriteString(escapeSpecialChars(codeContent)) // Escapa o conteúdo do código inline
+					result.WriteString("`")
+					lastIndex = match[1]
+				}
+				if lastIndex < len(text) {
+					result.WriteString(escapeNonFormatChars(text[lastIndex:]))
+				}
+				parts[i] = result.String()
+			} else { // Dentro do bloco de código
+				// Escapa o conteúdo dentro do bloco, mantendo as marcações ``` intactas
+				parts[i] = escapeSpecialChars(parts[i])
+			}
+		}
+		processed = strings.Join(parts, "```")
+	} else {
+		// Para SAFETYLEVEL_NONE
+		text := input
+		text = ProcessInlineFormatting(text)
+		text = processLinks(text)
+		processed = text
+	}
+
+	// ⬇️ AQUI: aplica o processamento final nos blocos de código
+	processed = processCodeBlocks(processed)
+
+	return processed
+}
+
 func processCodeBlocks(text string) string {
 	var result strings.Builder
 	var inCodeBlock bool
@@ -111,26 +161,6 @@ func processCodeBlocks(text string) string {
 	}
 
 	return strings.TrimSpace(result.String())
-}
-
-func ProcessText(input string, safetyLevel int) string {
-	if safetyLevel == internal.SAFETYLEVELSTRICT {
-		// No modo strict, escapa tudo, incluindo as marcações ``` e conteúdo
-		return escapeSpecialChars(input)
-	}
-
-	if safetyLevel == internal.SAFETYLEVELBASIC {
-		text := processCodeBlocks(input)
-		text = ProcessInlineFormatting(text)
-		text = processLinks(text)
-		return text
-	}
-
-	// Para SAFETYLEVEL_NONE
-	text := input
-	text = ProcessInlineFormatting(text)
-	text = processLinks(text)
-	return text
 }
 
 func processLinks(text string) string {

@@ -33,14 +33,13 @@ tgmarkdown.TruncateInsteadOfBreak = false
 // Converter markdown com opções básicas
 texto := `# Título
 **Negrito** e _itálico_`
-converted := tgmarkdown.Convert(texto, false, false, false, tgmarkdown.SAFETYLEVELBASIC)
+converted := tgmarkdown.Convert(texto, false, false, tgmarkdown.SAFETYLEVELBASIC)
 
 // Converter markdown com todas as opções explicadas
 converted = tgmarkdown.Convert(
     texto,           // texto em markdown para converter
     true,           // alignTableCols: alinhar colunas das tabelas
     false,          // ignoreTableSeparators: manter linhas separadoras das tabelas
-    true,           // safeMode: escapar caracteres especiais
     tgmarkdown.SAFETYLEVELBASIC, // nível de segurança
 )
 ```
@@ -67,7 +66,7 @@ texto := `| Nome  | Idade |
 | Maria  | 30    |`
 
 // Tabela com alinhamento (centro para Nome, direita para Idade)
-resultado := tgmarkdown.Convert(texto, true, true, true)
+resultado := tgmarkdown.Convert(texto, true, false, tgmarkdown.SAFETYLEVELBASIC)
 ```
 
 ### Listas
@@ -76,30 +75,31 @@ texto := `- Item não numerado
 - Outro item
 1. Item numerado
 2. Outro numerado`
-resultado := tgmarkdown.Convert(texto, false, false, true)
+resultado := tgmarkdown.Convert(texto, false, false, tgmarkdown.SAFETYLEVELBASIC)
 ```
 
 ### Citações
 ```go
 texto := `> Uma citação simples
 > Com **formatação** em _markdown_`
-resultado := tgmarkdown.Convert(texto, false, false, true)
+resultado := tgmarkdown.Convert(texto, false, false, tgmarkdown.SAFETYLEVELBASIC)
 ```
 
 ### Links com Formatação
 ```go
 texto := `[Link com **negrito** e _itálico_](https://exemplo.com)`
-resultado := tgmarkdown.Convert(texto, false, false, true)
+resultado := tgmarkdown.Convert(texto, false, false, tgmarkdown.SAFETYLEVELBASIC)
 ```
 
 ### Código
 ```go
 texto := "Código `inline` e bloco:\n```go\nfmt.Println(\"olá\")\n```"
-resultado := tgmarkdown.Convert(texto, false, false, true)
+resultado := tgmarkdown.Convert(texto, false, false, tgmarkdown.SAFETYLEVELBASIC)
 ```
 
 ### Formatação
 ```go
+texto := "**Negrito** _itálico_ ~~riscado~~ [link](https://exemplo.com)"
 texto := "**Negrito** _itálico_ ~~riscado~~ [link](https://exemplo.com)"
 resultado := tgmarkdown.Convert(texto, false, false, true)
 ```

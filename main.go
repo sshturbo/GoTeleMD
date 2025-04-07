@@ -54,14 +54,13 @@ var (
 	separatorLine      = regexp.MustCompile(`^\s*[:\-\| ]+\s*$`)
 )
 
-func Convert(input string, alignTableCols, ignoreTableSeparators bool, safeMode bool, safetyLevel ...int) string {
+func Convert(input string, alignTableCols, ignoreTableSeparators bool, safetyLevel ...int) string {
 	level := SAFETYLEVELBASIC
 	if len(safetyLevel) > 0 {
 		level = safetyLevel[0]
 	}
 
-	limit := TelegramMaxLength // Sempre usar o limite máximo do Telegram
-	parts := breakLongText(input, limit)
+	parts := breakLongText(input)
 	var outputParts []string
 
 	for _, part := range parts {
@@ -69,7 +68,7 @@ func Convert(input string, alignTableCols, ignoreTableSeparators bool, safeMode 
 		var output strings.Builder
 
 		for i, b := range blocks {
-			rendered := renderBlock(b, alignTableCols, ignoreTableSeparators, safeMode, level)
+			rendered := renderBlock(b, alignTableCols, ignoreTableSeparators, level)
 			if i > 0 {
 				output.WriteString("\n\n")
 			}
@@ -81,7 +80,7 @@ func Convert(input string, alignTableCols, ignoreTableSeparators bool, safeMode 
 	return strings.Join(outputParts, "\n\n")
 }
 
-func breakLongText(input string, limit int) []string {
+func breakLongText(input string) []string {
 	// Usar sempre o limite máximo do Telegram como padrão
 	effectiveLimit := TelegramMaxLength
 
@@ -224,23 +223,6 @@ func splitLongCodeBlock(input string, limit int) []string {
 	return parts
 }
 
-func splitBySize(input string, n int) []string {
-	runes := []rune(input)
-	inputLen := len(runes)
-	avgSize := inputLen / n
-	var result []string
-
-	for i := 0; i < n; i++ {
-		start := i * avgSize
-		end := (i + 1) * avgSize
-		if i == n-1 {
-			end = inputLen
-		}
-		result = append(result, string(runes[start:end]))
-	}
-	return result
-}
-
 func splitLongLine(input string, limit int) []string {
 	if utf8.RuneCountInString(input) <= limit {
 		return []string{input}
@@ -381,21 +363,22 @@ func tokenize(input string) []Block {
 	return blocks
 }
 
-func renderBlock(b Block, alignTableCols, ignoreTableSeparators bool, safeMode bool, safetyLevel int) string {
+func renderBlock(b Block, alignTableCols, ignoreTableSeparators bool, safetyLevel int) string {
 	switch b.Type {
 	case BlockCode:
-		// Retorna o conteúdo do bloco de código exatamente como está, sem nenhuma modificação
+		if safetyLevel == SAFETYLEVELSTRICT {
+			return escapeSpecialChars(b.Content) // Escapar tudo em modo estrito
+		}
+		// Retorna o conteúdo do bloco de código exatamente como está, sem modificação
 		if strings.HasPrefix(b.Content, "```") && strings.HasSuffix(b.Content, "```") {
 			return b.Content
 		}
-		// Caso o conteúdo esteja vazio ou malformado, retorna um bloco vazio padrão
 		if strings.TrimSpace(b.Content) == "" {
 			return "```\n```"
 		}
-		// Caso contrário, envolve o conteúdo em ```
 		return "```\n" + b.Content + "\n```"
 	case BlockText:
-		return processText(b.Content, safeMode, safetyLevel)
+		return processText(b.Content, safetyLevel)
 	case BlockTable:
 		lines := strings.Split(b.Content, "\n")
 		return convertTable(lines, alignTableCols, ignoreTableSeparators)
@@ -410,26 +393,25 @@ func renderBlock(b Block, alignTableCols, ignoreTableSeparators bool, safeMode b
 	}
 }
 
-func processText(input string, safe bool, safetyLevel int) string {
-	if safe && safetyLevel >= SAFETYLEVELSTRICT {
+func processText(input string, safetyLevel int) string {
+	if safetyLevel == SAFETYLEVELSTRICT {
+		// Escapar tudo, incluindo conteúdo dentro de blocos inline
 		return escapeSpecialChars(input)
 	}
 
-	if safetyLevel <= SAFETYLEVELBASIC {
+	if safetyLevel == SAFETYLEVELBASIC {
 		text := input
 		text = processInlineFormatting(text)
 		text = linkPattern.ReplaceAllStringFunc(text, func(m string) string {
 			match := linkPattern.FindStringSubmatch(m)
-			linkText := match[1] // Texto original do link
-
-			// Processar formatação manualmente para preservar * como negrito
+			linkText := match[1]
 			linkText = boldPattern.ReplaceAllStringFunc(linkText, func(b string) string {
 				boldMatch := boldPattern.FindStringSubmatch(b)
-				if boldMatch[2] != "" { // **text**
+				if boldMatch[2] != "" {
 					return "*" + strings.TrimSpace(boldMatch[2]) + "*"
-				} else if boldMatch[4] != "" { // __text__
+				} else if boldMatch[4] != "" {
 					return "*" + strings.TrimSpace(boldMatch[4]) + "*"
-				} else if boldMatch[6] != "" { // *text*
+				} else if boldMatch[6] != "" {
 					return "*" + strings.TrimSpace(boldMatch[6]) + "*"
 				}
 				return b
@@ -437,21 +419,58 @@ func processText(input string, safe bool, safetyLevel int) string {
 			linkText = italicPattern.ReplaceAllStringFunc(linkText, func(i string) string {
 				italicMatch := italicPattern.FindStringSubmatch(i)
 				if italicMatch[2] != "" {
-					return "_" + strings.TrimSpace(italicMatch[2]) + "_" // Corrigido: mudado para _italic_ em vez de _italic*
+					return "_" + strings.TrimSpace(italicMatch[2]) + "_"
 				}
 				return i
 			})
-
 			return fmt.Sprintf("[%s](%s)", linkText, match[2])
 		})
 
-		if !safe {
-			text = escapeNonFormatChars(text)
+		// Escapar caracteres especiais fora dos blocos inline
+		var result strings.Builder
+		lastIndex := 0
+		for _, match := range inlineCodePattern.FindAllStringSubmatchIndex(text, -1) {
+			prefix := text[lastIndex:match[0]]
+			result.WriteString(escapeNonFormatChars(prefix))
+			codeContent := text[match[2]:match[3]] // Conteúdo dentro de `
+			result.WriteString("`")
+			result.WriteString(codeContent) // Preservar conteúdo sem escapamento
+			result.WriteString("`")
+			lastIndex = match[1]
 		}
-		return text
+		if lastIndex < len(text) {
+			result.WriteString(escapeNonFormatChars(text[lastIndex:]))
+		}
+		return result.String()
 	}
 
-	return escapeSpecialChars(input)
+	// SAFETYLEVELNONE: Não escapar nada, apenas aplicar formatação
+	text := input
+	text = processInlineFormatting(text)
+	text = linkPattern.ReplaceAllStringFunc(text, func(m string) string {
+		match := linkPattern.FindStringSubmatch(m)
+		linkText := match[1]
+		linkText = boldPattern.ReplaceAllStringFunc(linkText, func(b string) string {
+			boldMatch := boldPattern.FindStringSubmatch(b)
+			if boldMatch[2] != "" {
+				return "*" + strings.TrimSpace(boldMatch[2]) + "*"
+			} else if boldMatch[4] != "" {
+				return "*" + strings.TrimSpace(boldMatch[4]) + "*"
+			} else if boldMatch[6] != "" {
+				return "*" + strings.TrimSpace(boldMatch[6]) + "*"
+			}
+			return b
+		})
+		linkText = italicPattern.ReplaceAllStringFunc(linkText, func(i string) string {
+			italicMatch := italicPattern.FindStringSubmatch(i)
+			if italicMatch[2] != "" {
+				return "_" + strings.TrimSpace(italicMatch[2]) + "_"
+			}
+			return i
+		})
+		return fmt.Sprintf("[%s](%s)", linkText, match[2])
+	})
+	return text
 }
 
 func processInlineFormatting(text string) string {

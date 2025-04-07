@@ -60,10 +60,7 @@ func Convert(input string, alignTableCols, ignoreTableSeparators bool, safeMode 
 		level = safetyLevel[0]
 	}
 
-	limit := TelegramMaxLength
-	if utf8.RuneCountInString(input) > 100 && limit > 100 {
-		limit = 100
-	}
+	limit := TelegramMaxLength // Sempre usar o limite máximo do Telegram
 	parts := breakLongText(input, limit)
 	var outputParts []string
 
@@ -85,35 +82,83 @@ func Convert(input string, alignTableCols, ignoreTableSeparators bool, safeMode 
 }
 
 func breakLongText(input string, limit int) []string {
-	if utf8.RuneCountInString(input) <= limit {
+	// Usar sempre o limite máximo do Telegram como padrão
+	effectiveLimit := TelegramMaxLength
+
+	if utf8.RuneCountInString(input) <= effectiveLimit {
 		return []string{input}
 	}
 
 	var result []string
 	inputLen := utf8.RuneCountInString(input)
 
-	if inputLen > 500 && limit == 100 {
-		if inputLen < 1000 {
-			return splitBySize(input, 5)
-		} else if inputLen < 2000 {
-			return splitBySize(input, 3)
+	// Se o input for um bloco de código completo, dividir apenas se exceder o limite
+	if strings.HasPrefix(input, "```") && strings.HasSuffix(input, "```") {
+		if inputLen <= effectiveLimit {
+			return []string{input}
 		}
+		// Dividir o bloco de código em partes menores que 4096 caracteres
+		return splitLongCodeBlock(input, effectiveLimit)
 	}
 
 	paragraphs := strings.Split(input, "\n\n")
 	currentPart := strings.Builder{}
+	inCodeBlock := false
+	codeBlockBuffer := strings.Builder{}
 
 	for _, paragraph := range paragraphs {
+		// Verificar se estamos entrando ou saindo de um bloco de código
+		if strings.HasPrefix(paragraph, "```") {
+			if inCodeBlock {
+				// Fim do bloco de código
+				inCodeBlock = false
+				codeBlockBuffer.WriteString(paragraph)
+				codeBlockContent := codeBlockBuffer.String()
+				if utf8.RuneCountInString(codeBlockContent) <= effectiveLimit {
+					if currentPart.Len() > 0 {
+						result = append(result, currentPart.String())
+						currentPart.Reset()
+					}
+					result = append(result, codeBlockContent)
+				} else {
+					// Dividir o bloco de código em partes menores
+					parts := splitLongCodeBlock(codeBlockContent, effectiveLimit)
+					if currentPart.Len() > 0 {
+						result = append(result, currentPart.String())
+						currentPart.Reset()
+					}
+					result = append(result, parts...)
+				}
+				codeBlockBuffer.Reset()
+			} else {
+				// Início do bloco de código
+				if currentPart.Len() > 0 {
+					result = append(result, currentPart.String())
+					currentPart.Reset()
+				}
+				inCodeBlock = true
+				codeBlockBuffer.WriteString(paragraph)
+				codeBlockBuffer.WriteString("\n\n")
+			}
+			continue
+		}
+
+		if inCodeBlock {
+			codeBlockBuffer.WriteString(paragraph)
+			codeBlockBuffer.WriteString("\n\n")
+			continue
+		}
+
 		paragraphLen := utf8.RuneCountInString(paragraph)
 
-		if paragraphLen > limit {
+		if paragraphLen > effectiveLimit {
 			if currentPart.Len() > 0 {
 				result = append(result, currentPart.String())
 				currentPart.Reset()
 			}
-			parts := splitLongLine(paragraph, limit)
+			parts := splitLongLine(paragraph, effectiveLimit)
 			result = append(result, parts...)
-		} else if currentPart.Len()+paragraphLen+2 > limit {
+		} else if currentPart.Len()+paragraphLen+2 > effectiveLimit {
 			result = append(result, currentPart.String())
 			currentPart.Reset()
 			currentPart.WriteString(paragraph)
@@ -125,11 +170,58 @@ func breakLongText(input string, limit int) []string {
 		}
 	}
 
-	if currentPart.Len() > 0 {
+	if inCodeBlock {
+		// Se o bloco de código não foi fechado, tratá-lo como texto normal
+		codeBlockContent := codeBlockBuffer.String()
+		parts := splitLongLine(codeBlockContent, effectiveLimit)
+		if currentPart.Len() > 0 {
+			result = append(result, currentPart.String())
+			currentPart.Reset()
+		}
+		result = append(result, parts...)
+	} else if currentPart.Len() > 0 {
 		result = append(result, currentPart.String())
 	}
 
 	return result
+}
+
+// Função auxiliar para dividir blocos de código longos
+func splitLongCodeBlock(input string, limit int) []string {
+	var parts []string
+	lines := strings.Split(input, "\n")
+	currentPart := strings.Builder{}
+	header := lines[0] // Primeira linha com ``` ou ```lang
+
+	for i, line := range lines[1:] { // Começar após o header
+		lineWithNewline := line + "\n"
+		if i == len(lines)-2 { // Última linha, remover \n extra
+			lineWithNewline = line
+		}
+
+		if currentPart.Len() == 0 {
+			currentPart.WriteString(header)
+			currentPart.WriteString("\n")
+		}
+
+		if utf8.RuneCountInString(currentPart.String()+lineWithNewline) > limit-3 { // Reservar espaço para ```
+			currentPart.WriteString("```")
+			parts = append(parts, currentPart.String())
+			currentPart.Reset()
+			currentPart.WriteString(header)
+			currentPart.WriteString("\n")
+			currentPart.WriteString(lineWithNewline)
+		} else {
+			currentPart.WriteString(lineWithNewline)
+		}
+	}
+
+	if currentPart.Len() > 0 {
+		currentPart.WriteString("```")
+		parts = append(parts, currentPart.String())
+	}
+
+	return parts
 }
 
 func splitBySize(input string, n int) []string {
@@ -202,7 +294,14 @@ func tokenize(input string) []Block {
 
 	flushBuffer := func() {
 		if len(buffer) > 0 {
-			blocks = append(blocks, Block{currentBlockType, strings.Join(buffer, "\n")})
+			content := strings.Join(buffer, "\n")
+			if currentBlockType == BlockCode {
+				// Preserva o conteúdo do bloco de código exatamente como está
+				blocks = append(blocks, Block{currentBlockType, content})
+			} else {
+				// Para outros blocos, aplica trim
+				blocks = append(blocks, Block{currentBlockType, strings.TrimSpace(content)})
+			}
 			buffer = []string{}
 			currentBlockType = BlockText
 		}
@@ -213,21 +312,24 @@ func tokenize(input string) []Block {
 
 		if strings.HasPrefix(line, "```") {
 			if inCodeBlock {
-				buffer = append(buffer, line)
-				blocks = append(blocks, Block{BlockCode, strings.Join(buffer, "\n")})
-				buffer = []string{}
+				// Fim do bloco de código
 				inCodeBlock = false
-				currentBlockType = BlockText
-			} else {
+				buffer = append(buffer, line) // Inclui a linha de fechamento ```
 				flushBuffer()
-				buffer = append(buffer, line)
+			} else {
+				// Início do bloco de código
+				if len(buffer) > 0 {
+					flushBuffer()
+				}
 				inCodeBlock = true
 				currentBlockType = BlockCode
+				buffer = append(buffer, line) // Inclui a linha de abertura ```
 			}
 			continue
 		}
 
 		if inCodeBlock {
+			// Adiciona a linha ao buffer sem modificações
 			buffer = append(buffer, line)
 			continue
 		}
@@ -282,11 +384,16 @@ func tokenize(input string) []Block {
 func renderBlock(b Block, alignTableCols, ignoreTableSeparators bool, safeMode bool, safetyLevel int) string {
 	switch b.Type {
 	case BlockCode:
-		lines := strings.Split(b.Content, "\n")
-		if len(lines) > 2 {
-			return "```\n" + strings.Join(lines[1:len(lines)-1], "\n") + "\n```"
+		// Retorna o conteúdo do bloco de código exatamente como está, sem nenhuma modificação
+		if strings.HasPrefix(b.Content, "```") && strings.HasSuffix(b.Content, "```") {
+			return b.Content
 		}
-		return b.Content
+		// Caso o conteúdo esteja vazio ou malformado, retorna um bloco vazio padrão
+		if strings.TrimSpace(b.Content) == "" {
+			return "```\n```"
+		}
+		// Caso contrário, envolve o conteúdo em ```
+		return "```\n" + b.Content + "\n```"
 	case BlockText:
 		return processText(b.Content, safeMode, safetyLevel)
 	case BlockTable:

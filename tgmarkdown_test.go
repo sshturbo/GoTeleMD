@@ -15,7 +15,7 @@ func TestTgMarkdown(t *testing.T) {
 	}{
 		// Blocos de Código
 		{"Bloco de código simples", "```\nfmt.Println(\"hello\")\n```", "```\nfmt.Println(\"hello\")\n```", false, SAFETYLEVELNONE},
-		{"Bloco de código com linguagem", "```go\nfmt.Println(\"hello\")\n```", "```\nfmt.Println(\"hello\")\n```", false, SAFETYLEVELNONE},
+		{"Bloco de código com linguagem", "```go\nfmt.Println(\"hello\")\n```", "```go\nfmt.Println(\"hello\")\n```", false, SAFETYLEVELNONE},
 
 		// Código Inline
 		{"Código inline", "This is `inline code` here", "This is `inline code` here", false, SAFETYLEVELNONE},
@@ -66,6 +66,34 @@ func TestTgMarkdown(t *testing.T) {
 
 		// Modo Seguro
 		{"Nível de segurança estrito", "**bold** and _italic_", "\\*\\*bold\\*\\* and \\_italic\\_", true, SAFETYLEVELSTRICT},
+
+		{
+			name: "Teste de HTML",
+			input: "```html\n" +
+				"<!DOCTYPE html>\n" +
+				`<html lang="pt-BR">` + "\n" +
+				"<head>\n" +
+				`  <meta charset="UTF-8">` + "\n" +
+				"  <title>Minha Página</title>\n" +
+				"</head>\n" +
+				"<body>\n" +
+				"  <h1>Bem-vindo</h1>\n" +
+				"</body>\n" +
+				"</html>\n```",
+			expected: "```html\n" +
+				"<!DOCTYPE html>\n" +
+				`<html lang="pt-BR">` + "\n" +
+				"<head>\n" +
+				`  <meta charset="UTF-8">` + "\n" +
+				"  <title>Minha Página</title>\n" +
+				"</head>\n" +
+				"<body>\n" +
+				"  <h1>Bem-vindo</h1>\n" +
+				"</body>\n" +
+				"</html>\n```",
+			safeMode:    true,
+			safetyLevel: SAFETYLEVELBASIC,
+		},
 	}
 
 	for _, tt := range tests {
@@ -89,19 +117,19 @@ func TestLongMessages(t *testing.T) {
 		{
 			name:   "Mensagem curta",
 			input:  "Uma mensagem curta que não deve ser quebrada",
-			limit:  100,
+			limit:  TelegramMaxLength,
 			partes: 1,
 		},
 		{
-			name:   "Mensagem longa",
-			input:  strings.Repeat("Texto longo que deve ser quebrado em várias partes. ", 10),
-			limit:  100,
+			name:   "Mensagem_longa",
+			input:  strings.Repeat("Texto longo que deve ser quebrado em várias partes. ", 320),
+			limit:  TelegramMaxLength, // Ajustar para refletir o limite real usado
 			partes: 5,
 		},
 		{
-			name:   "Código longo",
-			input:  "```\n" + strings.Repeat("Bloco de código muito longo que precisa ser quebrado\n", 5) + "```",
-			limit:  100,
+			name:   "Código_longo",
+			input:  "```\n" + strings.Repeat("Bloco de código muito longo que precisa ser quebrado\n", 205) + "```",
+			limit:  TelegramMaxLength, // Refletir o limite real usado no código
 			partes: 3,
 		},
 	}
@@ -116,5 +144,3 @@ func TestLongMessages(t *testing.T) {
 		})
 	}
 }
-
-

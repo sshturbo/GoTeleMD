@@ -1,4 +1,3 @@
-// Package github.com/sshturbo/tgmarkdown provides markdown conversion for Telegram
 package tgmarkdown
 
 import (

@@ -14,10 +14,34 @@ Lista de itens:
 - Item 2
 - Item 3
 
-```go
-func exemplo() {
-    fmt.Println("Olá, mundo!")
+```php
+<?php
+
+/**
+ * Função para calcular o maior de dois números.
+ *
+ * @param int $num1 O primeiro número.
+ * @param int $num2 O segundo número.
+ * @return int O maior dos dois números.
+ */
+function encontrarMaior(int $num1, int $num2): int {
+  if ($num1 > $num2) {
+    return $num1;
+  } else {
+    return $num2;
+  }
 }
+
+// Exemplo de uso da função
+$numero1 = 10;
+$numero2 = 25;
+
+$maiorNumero = encontrarMaior($numero1, $numero2);
+
+echo "O maior número entre $numero1 e $numero2 é: " . $maiorNumero . "
+";
+
+?>
 ```
 
 > Esta é uma citação de exemplo

@@ -2,3 +2,5 @@ github.com/PaulSonOfLars/gotgbot/v2 v2.0.0-rc.31 h1:SIkzqC6Nv+znY4NGbWlJceWdns8Q
 github.com/PaulSonOfLars/gotgbot/v2 v2.0.0-rc.31/go.mod h1:kL1v4iIjlalwm3gCYGvF4NLa3hs+aKEfRkNJvj4aoDU=
 github.com/sshturbo/GoTeleMD v0.1.4 h1:R9dHEIOQJNf+QSmVCqNN2FTUflcZVsxFoMhxxrhRmTQ=
 github.com/sshturbo/GoTeleMD v0.1.4/go.mod h1:YOrjnr8sVS3ZPvZhpQe2dTO2yXxYsftOLbJSdNmEXKE=
+github.com/sshturbo/GoTeleMD v0.1.5 h1:iwSv/8kBQvFmtQHGz7wmV8Z0ZoxOi1xR1HJ4SxNzo+s=
+github.com/sshturbo/GoTeleMD v0.1.5/go.mod h1:9TgL1fbDy5Tx1mOypY+payEkVftzo4TmYPD2xk/SKl4=

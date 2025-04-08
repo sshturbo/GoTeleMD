@@ -12,13 +12,11 @@ var (
 	isEnabled *bool
 )
 
-// InitLogger inicializa o logger com configurações padrão
 func InitLogger(enabled *bool) {
 	isEnabled = enabled
 	logger = log.New(os.Stdout, "", log.Ldate|log.Ltime)
 }
 
-// LogDebug registra uma mensagem de debug
 func LogDebug(format string, v ...interface{}) {
 	if isEnabled != nil && *isEnabled {
 		msg := fmt.Sprintf(format, v...)
@@ -26,7 +24,6 @@ func LogDebug(format string, v ...interface{}) {
 	}
 }
 
-// LogError registra uma mensagem de erro
 func LogError(format string, v ...interface{}) {
 	if isEnabled != nil && *isEnabled {
 		msg := fmt.Sprintf(format, v...)
@@ -34,7 +31,6 @@ func LogError(format string, v ...interface{}) {
 	}
 }
 
-// LogInfo registra uma mensagem informativa
 func LogInfo(format string, v ...interface{}) {
 	if isEnabled != nil && *isEnabled {
 		msg := fmt.Sprintf(format, v...)
@@ -42,7 +38,6 @@ func LogInfo(format string, v ...interface{}) {
 	}
 }
 
-// LogPerformance registra informações de performance
 func LogPerformance(operation string, duration time.Duration) {
 	if isEnabled != nil && *isEnabled {
 		logger.Printf("PERFORMANCE: %s took %v", operation, duration)

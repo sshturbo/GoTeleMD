@@ -9,7 +9,6 @@ import (
 	"github.com/sshturbo/GoTeleMD/pkg/utils"
 )
 
-// RenderBlock converte um bloco de texto para o formato MarkdownV2 do Telegram
 func RenderBlock(b internal.Block, alignTableCols, ignoreTableSeparators bool, safetyLevel int) string {
 	renderStart := time.Now()
 	defer func() {
@@ -20,7 +19,7 @@ func RenderBlock(b internal.Block, alignTableCols, ignoreTableSeparators bool, s
 
 	switch b.Type {
 	case internal.BlockCode:
-		return b.Content // Retorna o conteúdo do bloco de código sem alterações
+		return b.Content
 	case internal.BlockText:
 		return ProcessText(strings.TrimSpace(b.Content), safetyLevel)
 	case internal.BlockTable:

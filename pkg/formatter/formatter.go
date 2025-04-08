@@ -8,49 +8,39 @@ import (
 	"github.com/sshturbo/GoTeleMD/pkg/utils"
 )
 
-func ProcessText(input string, safetyLevel int) string {
-	if safetyLevel == internal.SAFETYLEVELSTRICT {
-		// No modo strict, escapa tudo, incluindo as marcações ``` e conteúdo
-		return escapeSpecialChars(input)
+func ProcessText(text string, safetyLevel SafetyLevel) string {
+	if safetyLevel == SafetyLevelNone {
+		return text
 	}
 
-	if safetyLevel == internal.SAFETYLEVELBASIC {
-		// Split por blocos de código primeiro
-		parts := strings.Split(input, "```")
-		for i := range parts {
-			if i%2 == 0 { // Fora do bloco de código
-				text := parts[i]
-				text = ProcessInlineFormatting(text)
-				text = processLinks(text)
-
-				var result strings.Builder
-				lastIndex := 0
-				for _, match := range utils.InlineCodePattern.FindAllStringSubmatchIndex(text, -1) {
-					prefix := text[lastIndex:match[0]]
-					result.WriteString(escapeNonFormatChars(prefix))
-					codeContent := text[match[2]:match[3]]
-					result.WriteString("`")
-					result.WriteString(escapeSpecialChars(codeContent)) // Escapa o conteúdo do código inline
-					result.WriteString("`")
-					lastIndex = match[1]
+	var result strings.Builder
+	parts := strings.Split(text, "```")
+	
+	for i, part := range parts {
+		if i%2 == 0 {
+			// Texto fora do bloco de código
+			lines := strings.Split(part, "\n")
+			for j, line := range lines {
+				processed := line
+				if safetyLevel == SafetyLevelHigh {
+					processed = escapeNonFormatChars(line)
+				} else if safetyLevel == SafetyLevelMedium {
+					processed = escapeSpecialCharsInText(line)
 				}
-				if lastIndex < len(text) {
-					result.WriteString(escapeNonFormatChars(text[lastIndex:]))
+				result.WriteString(processed)
+				if j < len(lines)-1 {
+					result.WriteString("\n")
 				}
-				parts[i] = result.String()
-			} else { // Dentro do bloco de código
-				// Escapa o conteúdo dentro do bloco, mantendo as marcações ``` intactas
-				parts[i] = escapeSpecialChars(parts[i])
 			}
+		} else {
+			// Conteúdo do bloco de código
+			result.WriteString("```")
+			result.WriteString(escapeCodeBlockContent(part))
+			result.WriteString("```")
 		}
-		return strings.Join(parts, "```")
 	}
-
-	// Para SAFETYLEVEL_NONE
-	text := input
-	text = ProcessInlineFormatting(text)
-	text = processLinks(text)
-	return text
+	
+	return result.String()
 }
 
 func processLinks(text string) string {
@@ -152,17 +142,53 @@ func escapeNonFormatChars(text string) string {
 	if lastIndex < len(text) {
 		result.WriteString(escapeSpecialCharsInText(text[lastIndex:]))
 	}
-
+	
 	return result.String()
 }
 
 func escapeSpecialCharsInText(text string) string {
-	escaped := text
-	specialChars := []string{"#", "+", "-", "=", "|", ".", "!", "(", ")", "{", "}"} 
-	for _, char := range specialChars {
-		escaped = strings.ReplaceAll(escaped, char, "\\"+char)
+	// Preserva a formatação original, apenas escapa caracteres especiais
+	lines := strings.Split(text, "\n")
+	var result strings.Builder
+	
+	for i, line := range lines {
+		// Escapa apenas os caracteres que precisam ser escapados no Telegram
+		escaped := line
+		specialChars := []string{"#", "+", "-", "=", "|", ".", "!", "(", ")", "{", "}"}
+		for _, char := range specialChars {
+			escaped = strings.ReplaceAll(escaped, char, "\\"+char)
+		}
+		
+		result.WriteString(escaped)
+		if i < len(lines)-1 {
+			result.WriteString("\n")
+		}
 	}
-	return escaped
+	
+	return result.String()
+}
+
+// Nova função para escapar apenas os caracteres necessários dentro de blocos de código
+func escapeCodeBlockContent(content string) string {
+	// Preserva a formatação original do bloco de código
+	lines := strings.Split(content, "\n")
+	var result strings.Builder
+	
+	for i, line := range lines {
+		// Escapa apenas os caracteres que precisam ser escapados no Telegram
+		escaped := line
+		specialChars := []string{"#", "+", "-", "=", "|", ".", "!", "(", ")", "{", "}"}
+		for _, char := range specialChars {
+			escaped = strings.ReplaceAll(escaped, char, "\\"+char)
+		}
+		
+		result.WriteString(escaped)
+		if i < len(lines)-1 {
+			result.WriteString("\n")
+		}
+	}
+	
+	return result.String()
 }
 
 func ProcessTitle(input string, safetyLevel int) string {

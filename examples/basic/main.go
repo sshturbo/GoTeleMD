@@ -10,7 +10,7 @@ import (
 func main() {
 	// Create a new converter with custom configuration
 	converter := GoTeleMD.NewConverter(
-		types.WithSafetyLevel(GoTeleMD.SAFETYLEVELSTRICT),
+		types.WithSafetyLevel(GoTeleMD.SAFETYLEVELBASIC),
 		types.WithTableAlignment(true),
 		types.WithMaxMessageLength(4096),
 		types.WithDebugLogs(true),

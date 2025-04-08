@@ -2,6 +2,10 @@
 package tgmarkdown
 
 import (
+	"crypto/rand"
+	"encoding/hex"
+	"strings"
+
 	"github.com/sshturbo/GoTeleMD/internal"
 	"github.com/sshturbo/GoTeleMD/pkg/formatter"
 	"github.com/sshturbo/GoTeleMD/pkg/utils"
@@ -31,16 +35,42 @@ func init() {
 	utils.InitLogger(&EnableLogs)
 }
 
+// generateMessageID gera um ID único para a mensagem
+func generateMessageID() string {
+	b := make([]byte, 8)
+	rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
 // Convert converte texto markdown para o formato MarkdownV2 do Telegram
 // com suporte a divisão de mensagens longas e preservação de blocos de código.
 // alignTableCols: alinha colunas de tabelas
 // ignoreTableSeparators: ignora separadores de tabela
 // safetyLevel: nível de segurança para escape de caracteres
-func Convert(input string, alignTableCols, ignoreTableSeparators bool, safetyLevel ...int) string {
+// Retorna uma MessageResponse com as partes da mensagem formatadas em JSON
+func Convert(input string, alignTableCols, ignoreTableSeparators bool, safetyLevel ...int) internal.MessageResponse {
 	level := internal.SAFETYLEVELBASIC
 	if len(safetyLevel) > 0 {
 		level = safetyLevel[0]
 	}
 
-	return formatter.ConvertMarkdown(input, alignTableCols, ignoreTableSeparators, level)
+	resultado := formatter.ConvertMarkdown(input, alignTableCols, ignoreTableSeparators, level)
+
+	// Divide o texto em partes usando \n\n como separador
+	partes := strings.Split(resultado, "\n\n")
+
+	// Cria a estrutura da resposta
+	messageParts := make([]internal.MessagePart, len(partes))
+	for i, content := range partes {
+		messageParts[i] = internal.MessagePart{
+			Part:    i + 1,
+			Content: strings.TrimSpace(content),
+		}
+	}
+
+	return internal.MessageResponse{
+		MessageID:  generateMessageID(),
+		TotalParts: len(messageParts),
+		Parts:      messageParts,
+	}
 }

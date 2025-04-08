@@ -1,12 +1,21 @@
 package parser
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/sshturbo/GoTeleMD/internal"
 	"github.com/sshturbo/GoTeleMD/pkg/utils"
 )
+
+// generateMessageID gera um ID único para a mensagem
+func generateMessageID() string {
+	b := make([]byte, 8)
+	rand.Read(b)
+	return hex.EncodeToString(b)
+}
 
 // Tokenize breaks down the input text into blocks of different types (code, text, table, etc.).
 // It handles special markdown syntax like code blocks, tables, titles, and lists.
@@ -106,11 +115,20 @@ func Tokenize(input string) []internal.Block {
 // 1. Code blocks are never split - they are kept as complete units
 // 2. Regular text is split at appropriate boundaries when needed
 // 3. The resulting parts do not exceed Telegram's message length limit
-func BreakLongText(input string) []string {
+func BreakLongText(input string) internal.MessageResponse {
 	effectiveLimit := internal.TelegramMaxLength
 
 	if utf8.RuneCountInString(input) <= effectiveLimit {
-		return []string{input}
+		return internal.MessageResponse{
+			MessageID:  generateMessageID(),
+			TotalParts: 1,
+			Parts: []internal.MessagePart{
+				{
+					Part:    1,
+					Content: input,
+				},
+			},
+		}
 	}
 
 	var result []string
@@ -159,7 +177,20 @@ func BreakLongText(input string) []string {
 		result = append(result, strings.TrimSpace(currentPart.String()))
 	}
 
-	return result
+	// Converte o resultado em MessageResponse
+	messageParts := make([]internal.MessagePart, len(result))
+	for i, content := range result {
+		messageParts[i] = internal.MessagePart{
+			Part:    i + 1,
+			Content: content,
+		}
+	}
+
+	return internal.MessageResponse{
+		MessageID:  generateMessageID(),
+		TotalParts: len(messageParts),
+		Parts:      messageParts,
+	}
 }
 
 // handleCodeBlockEnd processa o final de um bloco de código

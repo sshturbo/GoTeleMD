@@ -18,14 +18,15 @@ func ConvertMarkdown(input string, alignTableCols, ignoreTableSeparators bool, s
 
 	utils.LogDebug("Iniciando conversão com nível de segurança: %d", safetyLevel)
 
-	// Divide o texto em partes menores
-	parts := parser.BreakLongText(strings.TrimSpace(input))
-	var outputParts []string
+	// Divide o texto em partes menores e obtém a resposta em formato MessageResponse
+	response := parser.BreakLongText(strings.TrimSpace(input))
 
-	for _, part := range parts {
-		blocks := parser.Tokenize(strings.TrimSpace(part))
+	var outputParts []string
+	// Itera sobre as partes da mensagem
+	for _, part := range response.Parts {
+		blocks := parser.Tokenize(strings.TrimSpace(part.Content))
 		var output strings.Builder
-		output.Grow(len(part))
+		output.Grow(len(part.Content))
 
 		for i, b := range blocks {
 			// Adiciona quebras de linha apropriadas entre blocos

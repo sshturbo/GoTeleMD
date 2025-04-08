@@ -133,7 +133,15 @@ func TestTgMarkdown(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			alignTableCols := tt.name == "Tabela alinhada"
-			resultado := Convert(tt.input, alignTableCols, false, tt.safetyLevel)
+			response := Convert(tt.input, alignTableCols, false, tt.safetyLevel)
+
+			// Para testes, vamos verificar apenas o conteúdo da primeira parte
+			if len(response.Parts) == 0 {
+				t.Error("Resposta não contém nenhuma parte")
+				return
+			}
+
+			resultado := response.Parts[0].Content
 			if resultado != tt.expected {
 				t.Errorf("\nEsperado:\n%v\nObtido:\n%v", tt.expected, resultado)
 			}
@@ -170,10 +178,9 @@ func TestLongMessages(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resultado := Convert(tt.input, false, false, internal.SAFETYLEVELBASIC)
-			partes := strings.Split(resultado, "\n\n")
-			if len(partes) != tt.partes {
-				t.Errorf("Esperado %d partes, obtido %d", tt.partes, len(partes))
+			response := Convert(tt.input, false, false, internal.SAFETYLEVELBASIC)
+			if response.TotalParts != tt.partes {
+				t.Errorf("Esperado %d partes, obtido %d", tt.partes, response.TotalParts)
 			}
 		})
 	}
@@ -211,17 +218,18 @@ func TestLongMessagesWithCodeBlocks(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resultado := Convert(tt.input, false, false, internal.SAFETYLEVELBASIC)
-			partes := strings.Split(resultado, "\n\n")
+			response := Convert(tt.input, false, false, internal.SAFETYLEVELBASIC)
 
-			if len(partes) != len(tt.expected) {
-				t.Errorf("Número de partes incorreto. Esperado %d, obtido %d", len(tt.expected), len(partes))
+			if len(response.Parts) != len(tt.expected) {
+				t.Errorf("Número de partes incorreto. Esperado %d, obtido %d",
+					len(tt.expected), len(response.Parts))
 				return
 			}
 
-			for i, parte := range partes {
-				if parte != tt.expected[i] {
-					t.Errorf("Parte %d incorreta.\nEsperado:\n%s\nObtido:\n%s", i, tt.expected[i], parte)
+			for i, expectedContent := range tt.expected {
+				if response.Parts[i].Content != expectedContent {
+					t.Errorf("Parte %d incorreta.\nEsperado:\n%s\nObtido:\n%s",
+						i, expectedContent, response.Parts[i].Content)
 				}
 			}
 		})

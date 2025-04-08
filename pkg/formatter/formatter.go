@@ -80,6 +80,7 @@ func processLinks(text string) string {
 }
 
 func ProcessInlineFormatting(text string) string {
+	// Processa negrito
 	text = utils.BoldPattern.ReplaceAllStringFunc(text, func(m string) string {
 		match := utils.BoldPattern.FindStringSubmatch(m)
 		if match[2] != "" {
@@ -87,11 +88,12 @@ func ProcessInlineFormatting(text string) string {
 		} else if match[4] != "" {
 			return "*" + strings.TrimSpace(match[4]) + "*"
 		} else if match[6] != "" {
-			return "_" + strings.TrimSpace(match[6]) + "_"
+			return "_" + strings.TrimSpace(match[6]) + "_" // Caso de sublinhado como fallback
 		}
 		return m
 	})
 
+	// Processa itálico
 	text = utils.ItalicPattern.ReplaceAllStringFunc(text, func(m string) string {
 		match := utils.ItalicPattern.FindStringSubmatch(m)
 		if match[2] != "" {
@@ -100,8 +102,10 @@ func ProcessInlineFormatting(text string) string {
 		return m
 	})
 
+	// Processa código inline
 	text = utils.InlineCodePattern.ReplaceAllString(text, "`$1`")
 
+	// Processa riscado
 	text = utils.RiscadoPattern.ReplaceAllStringFunc(text, func(m string) string {
 		match := utils.RiscadoPattern.FindStringSubmatch(m)
 		if len(match) < 2 {
@@ -154,7 +158,7 @@ func escapeNonFormatChars(text string) string {
 
 func escapeSpecialCharsInText(text string) string {
 	escaped := text
-	specialChars := []string{"#", "+", "-", "=", "|", ".", "!", "(", ")", "{", "}"}
+	specialChars := []string{"#", "+", "-", "=", "|", ".", "!", "(", ")", "{", "}"} 
 	for _, char := range specialChars {
 		escaped = strings.ReplaceAll(escaped, char, "\\"+char)
 	}
@@ -190,14 +194,26 @@ func ProcessList(input string, safetyLevel int) string {
 		switch {
 		case utils.ListItemPattern.MatchString(line):
 			match := utils.ListItemPattern.FindStringSubmatch(line)
-			item := ProcessInlineFormatting(match[1])
+			item := match[1] // Texto do item da lista
+			// Processa a formatação inline primeiro
+			item = ProcessInlineFormatting(item)
+			// Escapa caracteres especiais que não fazem parte da formatação
+			item = escapeNonFormatChars(item)
 			builder.WriteString(fmt.Sprintf("• %s\n", item))
 		case utils.OrderedListPattern.MatchString(line):
 			match := utils.OrderedListPattern.FindStringSubmatch(line)
-			item := ProcessInlineFormatting(match[1])
+			item := match[1] // Texto do item da lista
+			// Processa a formatação inline primeiro
+			item = ProcessInlineFormatting(item)
+			// Escapa caracteres especiais que não fazem parte da formatação
+			item = escapeNonFormatChars(item)
 			builder.WriteString(fmt.Sprintf("%d. %s\n", listCounter, item))
 			listCounter++
 		default:
+			// Para linhas que não são itens de lista, escapa se necessário
+			if safetyLevel == internal.SAFETYLEVELBASIC {
+				line = escapeNonFormatChars(line)
+			}
 			builder.WriteString(line)
 			builder.WriteString("\n")
 			listCounter = 1

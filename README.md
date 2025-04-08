@@ -19,28 +19,6 @@ Conversor de Markdown estilo GitHub para MarkdownV2 do Telegram, com suporte a:
 go get github.com/sshturbo/GoTeleMD@v0.1.0
 ```
 
-## Uso
-
-```go
-import "github.com/sshturbo/GoTeleMD"
-
-// Habilitar logs para debug (opcional)
-tgmarkdown.EnableLogs = true
-
-// Converter markdown com opções básicas
-texto := `# Título
-**Negrito** e _itálico_`
-converted := tgmarkdown.Convert(texto, false, false, tgmarkdown.SAFETYLEVELBASIC)
-
-// Converter markdown com todas as opções explicadas
-// Forma correta de chamar a função
-texto := tgmarkdown.Convert(
-    input,          // string - texto de entrada
-    false,          // bool - alignTableCols
-    false,          // bool - ignoreTableSeparators
-    tgmarkdown.SAFETYLEVELBASIC, // int - nível de segurança
-)
-```
 
 ## Configurações
 
@@ -110,7 +88,7 @@ response := tgmarkdown.Convert(textoLongo, false, false, tgmarkdown.SAFETYLEVELB
 // Resultado será quebrado em partes menores que 4096 caracteres
 ```
 
-### Enviando Mensagens Longas para o Telegram
+### Exemplo uso
 Exemplo completo de como enviar mensagens longas divididas em partes:
 
 ```go

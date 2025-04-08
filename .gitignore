@@ -18,7 +18,9 @@ vendor/
 go.work
 
 # Ignorar diretório examples
-examples/
+exemples/
+
+GoTeleMD_test.go
 
 # Arquivos de debug Go
 debug

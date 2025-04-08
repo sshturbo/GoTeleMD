@@ -100,7 +100,7 @@ import (
 )
 
 func init() {
-	tgmarkdown.EnableLogs = true
+    tgmarkdown.EnableLogs = true
 }
 
 // Função para enviar uma única mensagem
@@ -155,14 +155,12 @@ Um texto muito longo com **formatação** em _markdown_...
     
 ## Código de Exemplo
     
-```go
+\`\`\`go
 func exemplo() {
     fmt.Println("Olá, mundo!")
 }
-```
-    
-E mais conteúdo...`
-
+\`\`\`
+`
     // Converte o texto usando a lib
     response := tgmarkdown.Convert(
         textoLongo,

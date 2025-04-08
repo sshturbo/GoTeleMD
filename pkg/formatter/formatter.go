@@ -8,51 +8,49 @@ import (
 	"github.com/sshturbo/GoTeleMD/pkg/utils"
 )
 
-// SafetyLevel define os níveis de segurança para formatação de texto
-type SafetyLevel int
-
-const (
-	// SafetyLevelNone não aplica nenhuma formatação de segurança
-	SafetyLevelNone SafetyLevel = iota
-	// SafetyLevelMedium aplica formatação de segurança média
-	SafetyLevelMedium
-	// SafetyLevelHigh aplica formatação de segurança alta
-	SafetyLevelHigh
-)
-
-func ProcessText(text string, safetyLevel SafetyLevel) string {
-	if safetyLevel == SafetyLevelNone {
-		return text
+func ProcessText(input string, safetyLevel int) string {
+	if safetyLevel == internal.SAFETYLEVELSTRICT {
+		// No modo strict, escapa tudo, incluindo as marcações ``` e conteúdo
+		return escapeSpecialChars(input)
 	}
 
-	var result strings.Builder
-	parts := strings.Split(text, "```")
-	
-	for i, part := range parts {
-		if i%2 == 0 {
-			// Texto fora do bloco de código
-			lines := strings.Split(part, "\n")
-			for j, line := range lines {
-				processed := line
-				if safetyLevel == SafetyLevelHigh {
-					processed = escapeNonFormatChars(line)
-				} else if safetyLevel == SafetyLevelMedium {
-					processed = escapeSpecialCharsInText(line)
+	if safetyLevel == internal.SAFETYLEVELBASIC {
+		// Split por blocos de código primeiro
+		parts := strings.Split(input, "```")
+		for i := range parts {
+			if i%2 == 0 { // Fora do bloco de código
+				text := parts[i]
+				text = ProcessInlineFormatting(text)
+				text = processLinks(text)
+
+				var result strings.Builder
+				lastIndex := 0
+				for _, match := range utils.InlineCodePattern.FindAllStringSubmatchIndex(text, -1) {
+					prefix := text[lastIndex:match[0]]
+					result.WriteString(escapeNonFormatChars(prefix))
+					codeContent := text[match[2]:match[3]]
+					result.WriteString("`")
+					result.WriteString(escapeSpecialChars(codeContent)) // Escapa o conteúdo do código inline
+					result.WriteString("`")
+					lastIndex = match[1]
 				}
-				result.WriteString(processed)
-				if j < len(lines)-1 {
-					result.WriteString("\n")
+				if lastIndex < len(text) {
+					result.WriteString(escapeNonFormatChars(text[lastIndex:]))
 				}
+				parts[i] = result.String()
+			} else { // Dentro do bloco de código
+				// Escapa o conteúdo dentro do bloco, mantendo as marcações ``` intactas
+				parts[i] = escapeSpecialChars(parts[i])
 			}
-		} else {
-			// Conteúdo do bloco de código
-			result.WriteString("```")
-			result.WriteString(escapeCodeBlockContent(part))
-			result.WriteString("```")
 		}
+		return strings.Join(parts, "```")
 	}
-	
-	return result.String()
+
+	// Para SAFETYLEVEL_NONE
+	text := input
+	text = ProcessInlineFormatting(text)
+	text = processLinks(text)
+	return text
 }
 
 func processLinks(text string) string {
@@ -154,57 +152,21 @@ func escapeNonFormatChars(text string) string {
 	if lastIndex < len(text) {
 		result.WriteString(escapeSpecialCharsInText(text[lastIndex:]))
 	}
-	
+
 	return result.String()
 }
 
 func escapeSpecialCharsInText(text string) string {
-	// Preserva a formatação original, apenas escapa caracteres especiais
-	lines := strings.Split(text, "\n")
-	var result strings.Builder
-	
-	for i, line := range lines {
-		// Escapa apenas os caracteres que precisam ser escapados no Telegram
-		escaped := line
-		specialChars := []string{"#", "+", "-", "=", "|", ".", "!", "(", ")", "{", "}"}
-		for _, char := range specialChars {
-			escaped = strings.ReplaceAll(escaped, char, "\\"+char)
-		}
-		
-		result.WriteString(escaped)
-		if i < len(lines)-1 {
-			result.WriteString("\n")
-		}
+	escaped := text
+	specialChars := []string{"#", "+", "-", "=", "|", ".", "!", "(", ")", "{", "}"} 
+	for _, char := range specialChars {
+		escaped = strings.ReplaceAll(escaped, char, "\\"+char)
 	}
-	
-	return result.String()
+	return escaped
 }
 
-// Nova função para escapar apenas os caracteres necessários dentro de blocos de código
-func escapeCodeBlockContent(content string) string {
-	// Preserva a formatação original do bloco de código
-	lines := strings.Split(content, "\n")
-	var result strings.Builder
-	
-	for i, line := range lines {
-		// Escapa apenas os caracteres que precisam ser escapados no Telegram
-		escaped := line
-		specialChars := []string{"#", "+", "-", "=", "|", ".", "!", "(", ")", "{", "}"}
-		for _, char := range specialChars {
-			escaped = strings.ReplaceAll(escaped, char, "\\"+char)
-		}
-		
-		result.WriteString(escaped)
-		if i < len(lines)-1 {
-			result.WriteString("\n")
-		}
-	}
-	
-	return result.String()
-}
-
-func ProcessTitle(input string, safetyLevel SafetyLevel) string {
-	if safetyLevel == SafetyLevelHigh {
+func ProcessTitle(input string, safetyLevel int) string {
+	if safetyLevel >= internal.SAFETYLEVELSTRICT {
 		return escapeSpecialChars(input)
 	}
 
@@ -219,8 +181,8 @@ func ProcessTitle(input string, safetyLevel SafetyLevel) string {
 	})
 }
 
-func ProcessList(input string, safetyLevel SafetyLevel) string {
-	if safetyLevel == SafetyLevelHigh {
+func ProcessList(input string, safetyLevel int) string {
+	if safetyLevel >= internal.SAFETYLEVELSTRICT {
 		return escapeSpecialChars(input)
 	}
 
@@ -249,7 +211,7 @@ func ProcessList(input string, safetyLevel SafetyLevel) string {
 			listCounter++
 		default:
 			// Para linhas que não são itens de lista, escapa se necessário
-			if safetyLevel == SafetyLevelMedium {
+			if safetyLevel == internal.SAFETYLEVELBASIC {
 				line = escapeNonFormatChars(line)
 			}
 			builder.WriteString(line)
@@ -261,8 +223,8 @@ func ProcessList(input string, safetyLevel SafetyLevel) string {
 	return strings.TrimSpace(builder.String())
 }
 
-func ProcessQuote(input string, safetyLevel SafetyLevel) string {
-	if safetyLevel == SafetyLevelHigh {
+func ProcessQuote(input string, safetyLevel int) string {
+	if safetyLevel >= internal.SAFETYLEVELSTRICT {
 		return escapeSpecialChars(input)
 	}
 

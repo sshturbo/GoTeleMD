@@ -53,9 +53,9 @@ texto := tgmarkdown.Convert(
 - `MaxWordLength`: tamanho máximo de palavra antes de forçar quebra (default: 200)
 
 ### Níveis de Segurança
-- `SAFETYLEVELNONE`: sem escape de caracteres especiais (mapeado para `formatter.SafetyLevelNone`)
-- `SAFETYLEVELBASIC`: escape básico mantendo formatação (mapeado para `formatter.SafetyLevelMedium`)
-- `SAFETYLEVELSTRICT`: escape completo sem formatação (mapeado para `formatter.SafetyLevelHigh`)
+- `SAFETYLEVELNONE`: sem escape de caracteres especiais
+- `SAFETYLEVELBASIC`: escape básico mantendo formatação (padrão)
+- `SAFETYLEVELSTRICT`: escape completo sem formatação
 
 ## Exemplos
 

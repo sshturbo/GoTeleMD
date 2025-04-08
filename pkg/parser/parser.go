@@ -107,45 +107,19 @@ func BreakLongText(input string) []string {
 	}
 
 	var result []string
+	inputLen := utf8.RuneCountInString(input)
 
-	// Special handling for code blocks
-	if strings.HasPrefix(input, "```") {
-		// Find the end of the code block
-		endIndex := strings.Index(input, "```")
-		if endIndex == -1 {
+	if strings.HasPrefix(input, "```") && strings.HasSuffix(input, "```") {
+		if inputLen <= effectiveLimit {
 			return []string{input}
 		}
-
-		// Check if there's a title before the code block
-		titleStart := strings.LastIndex(input[:endIndex], "**")
-		if titleStart != -1 {
-			titleEnd := strings.Index(input[titleStart:], ":**") + titleStart + 3
-			if titleEnd > titleStart {
-				// Include the title in the code block
-				header := input[:titleEnd]
-				content := input[titleEnd:]
-				return splitLongCodeBlockWithTitle(header, content, effectiveLimit)
-			}
-		}
-
-		// If no title found, proceed with normal code block splitting
-		parts := strings.SplitN(input, "\n", 2)
-		if len(parts) != 2 {
-			return []string{input}
-		}
-		header := parts[0]
-		content := parts[1]
-		content = strings.TrimSuffix(content, "```")
-		
-		return splitLongCodeBlockWithTitle(header, content, effectiveLimit)
+		return splitLongCodeBlock(input, effectiveLimit)
 	}
 
-	// Handle regular text with embedded code blocks
 	paragraphs := strings.Split(input, "\n\n")
 	currentPart := strings.Builder{}
 	inCodeBlock := false
 	codeBlockBuffer := strings.Builder{}
-	var titleBuffer strings.Builder
 
 	for _, paragraph := range paragraphs {
 		if strings.HasPrefix(paragraph, "```") {
@@ -160,7 +134,7 @@ func BreakLongText(input string) []string {
 					}
 					result = append(result, codeBlockContent)
 				} else {
-					parts := splitLongCodeBlockWithTitle(titleBuffer.String(), codeBlockContent, effectiveLimit)
+					parts := splitLongCodeBlock(codeBlockContent, effectiveLimit)
 					if currentPart.Len() > 0 {
 						result = append(result, currentPart.String())
 						currentPart.Reset()
@@ -168,7 +142,6 @@ func BreakLongText(input string) []string {
 					result = append(result, parts...)
 				}
 				codeBlockBuffer.Reset()
-				titleBuffer.Reset()
 			} else {
 				if currentPart.Len() > 0 {
 					result = append(result, currentPart.String())
@@ -182,13 +155,8 @@ func BreakLongText(input string) []string {
 		}
 
 		if inCodeBlock {
-			if strings.HasPrefix(paragraph, "**") && strings.HasSuffix(paragraph, ":**") {
-				titleBuffer.WriteString(paragraph)
-				titleBuffer.WriteString("\n\n")
-			} else {
-				codeBlockBuffer.WriteString(paragraph)
-				codeBlockBuffer.WriteString("\n\n")
-			}
+			codeBlockBuffer.WriteString(paragraph)
+			codeBlockBuffer.WriteString("\n\n")
 			continue
 		}
 
@@ -215,7 +183,7 @@ func BreakLongText(input string) []string {
 
 	if inCodeBlock {
 		codeBlockContent := codeBlockBuffer.String()
-		parts := splitLongCodeBlockWithTitle(titleBuffer.String(), codeBlockContent, effectiveLimit)
+		parts := splitLongLine(codeBlockContent, effectiveLimit)
 		if currentPart.Len() > 0 {
 			result = append(result, currentPart.String())
 			currentPart.Reset()
@@ -228,65 +196,28 @@ func BreakLongText(input string) []string {
 	return result
 }
 
-func splitLongCodeBlockWithTitle(title, content string, limit int) []string {
+func splitLongCodeBlock(input string, limit int) []string {
 	var parts []string
-	lines := strings.Split(content, "\n")
+	lines := strings.Split(input, "\n")
 	currentPart := strings.Builder{}
-	
-	// Add title to first part
-	if title != "" {
-		currentPart.WriteString(title)
-		currentPart.WriteString("\n\n")
-	}
+	header := lines[0]
 
-	// Adiciona a marcação de código no início
-	if !strings.HasPrefix(content, "```") {
-		currentPart.WriteString("```")
-		currentPart.WriteString("\n")
-	}
-
-	for i, line := range lines {
+	for i, line := range lines[1:] {
 		lineWithNewline := line + "\n"
-		if i == len(lines)-1 {
+		if i == len(lines)-2 {
 			lineWithNewline = line
 		}
 
-		// Verifica se a linha atual é uma marcação de código
-		if strings.TrimSpace(line) == "```" {
-			// Se estamos no início, ignora
-			if currentPart.Len() == 0 {
-				continue
-			}
-			// Se estamos no final, adiciona a marcação de fechamento
-			if i == len(lines)-1 {
-				currentPart.WriteString("```")
-				parts = append(parts, currentPart.String())
-				return parts
-			}
-			// Se estamos no meio, fecha o bloco atual e começa um novo
-			currentPart.WriteString("```")
-			parts = append(parts, currentPart.String())
-			currentPart.Reset()
-			if title != "" && len(parts) == 1 {
-				currentPart.WriteString(title)
-				currentPart.WriteString("\n\n")
-			}
-			currentPart.WriteString("```")
+		if currentPart.Len() == 0 {
+			currentPart.WriteString(header)
 			currentPart.WriteString("\n")
-			continue
 		}
 
 		if utf8.RuneCountInString(currentPart.String()+lineWithNewline) > limit-3 {
-			// Close current block and start new one
 			currentPart.WriteString("```")
 			parts = append(parts, currentPart.String())
 			currentPart.Reset()
-			// Start new block with title if it's the first part
-			if title != "" && len(parts) == 1 {
-				currentPart.WriteString(title)
-				currentPart.WriteString("\n\n")
-			}
-			currentPart.WriteString("```")
+			currentPart.WriteString(header)
 			currentPart.WriteString("\n")
 			currentPart.WriteString(lineWithNewline)
 		} else {
@@ -294,7 +225,6 @@ func splitLongCodeBlockWithTitle(title, content string, limit int) []string {
 		}
 	}
 
-	// Close the last block
 	if currentPart.Len() > 0 {
 		currentPart.WriteString("```")
 		parts = append(parts, currentPart.String())

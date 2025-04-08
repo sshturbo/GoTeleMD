@@ -1,6 +1,6 @@
 # GoTeleMD
 
-GoTeleMD é uma biblioteca Go para converter Markdown em formato compatível com Telegram MarkdownV2.
+GoTeleMD é uma biblioteca Go para converter MarkdownV2 em formato compatível com Telegram MarkdownV2.
 
 ## Características
 

@@ -9,17 +9,23 @@ type Config struct {
 	CustomEscapeChars    []string
 	PreserveEmptyLines   bool
 	StrictLineBreaks     bool
+	NumWorkers           int 
+	WorkerQueueSize      int
+	MaxConcurrentParts   int 
 }
 
 func DefaultConfig() *Config {
 	return &Config{
-		SafetyLevel:          1, // SAFETYLEVELBASIC
+		SafetyLevel:          1, 
 		AlignTableColumns:    true,
 		IgnoreTableSeparator: false,
-		MaxMessageLength:     4096, // TelegramMaxLength
+		MaxMessageLength:     4096, 
 		EnableDebugLogs:      false,
 		PreserveEmptyLines:   true,
 		StrictLineBreaks:     true,
+		NumWorkers:           4,
+		WorkerQueueSize:      32,
+		MaxConcurrentParts:   8,
 	}
 }
 
@@ -70,5 +76,29 @@ func WithPreserveEmptyLines(preserve bool) Option {
 func WithStrictLineBreaks(strict bool) Option {
 	return func(c *Config) {
 		c.StrictLineBreaks = strict
+	}
+}
+
+func WithNumWorkers(num int) Option {
+	return func(c *Config) {
+		if num > 0 {
+			c.NumWorkers = num
+		}
+	}
+}
+
+func WithWorkerQueueSize(size int) Option {
+	return func(c *Config) {
+		if size > 0 {
+			c.WorkerQueueSize = size
+		}
+	}
+}
+
+func WithMaxConcurrentParts(max int) Option {
+	return func(c *Config) {
+		if max > 0 {
+			c.MaxConcurrentParts = max
+		}
 	}
 }

@@ -16,7 +16,7 @@ Conversor de Markdown estilo GitHub para MarkdownV2 do Telegram, com suporte a:
 ## Instalação
 
 ```bash
-go get github.com/sshturbo/GoTeleMD@v0.1.0
+go get github.com/sshturbo/GoTeleMD@latest
 ```
 
 
@@ -24,8 +24,6 @@ go get github.com/sshturbo/GoTeleMD@v0.1.0
 
 ### Variáveis Globais
 - `EnableLogs`: ativa logs de debug (default: false)
-- `TruncateInsteadOfBreak`: trunca texto ao invés de quebrar em pontos seguros (default: false)
-- `MaxWordLength`: tamanho máximo de palavra antes de forçar quebra (default: 200)
 
 ### Níveis de Segurança
 - `SAFETYLEVELNONE`: sem escape de caracteres especiais

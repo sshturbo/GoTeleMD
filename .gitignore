@@ -1,0 +1,21 @@
+# Ignorar diretório examples
+/examples/
+
+# Ignorar arquivo de teste específico
+tgmarkdown_test.go
+
+# Arquivos de debug Go
+debug
+*.test
+*.out
+
+# Arquivos de IDE e editores
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db 

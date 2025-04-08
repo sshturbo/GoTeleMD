@@ -47,24 +47,33 @@ func generateMessageID() string {
 // alignTableCols: alinha colunas de tabelas
 // ignoreTableSeparators: ignora separadores de tabela
 // safetyLevel: nível de segurança para escape de caracteres
-// Retorna uma MessageResponse com as partes da mensagem formatadas em JSON
+// Retorna uma MessageResponse com as partes da mensagem formatadas
 func Convert(input string, alignTableCols, ignoreTableSeparators bool, safetyLevel ...int) internal.MessageResponse {
 	level := internal.SAFETYLEVELBASIC
 	if len(safetyLevel) > 0 {
 		level = safetyLevel[0]
 	}
 
+	// Converte o texto usando o formatter
 	resultado := formatter.ConvertMarkdown(input, alignTableCols, ignoreTableSeparators, level)
 
 	// Divide o texto em partes usando \n\n como separador
 	partes := strings.Split(resultado, "\n\n")
 
+	// Remove partes vazias e aplica trim
+	var partesLimpas []string
+	for _, parte := range partes {
+		if trimmed := strings.TrimSpace(parte); trimmed != "" {
+			partesLimpas = append(partesLimpas, trimmed)
+		}
+	}
+
 	// Cria a estrutura da resposta
-	messageParts := make([]internal.MessagePart, len(partes))
-	for i, content := range partes {
+	messageParts := make([]internal.MessagePart, len(partesLimpas))
+	for i, content := range partesLimpas {
 		messageParts[i] = internal.MessagePart{
 			Part:    i + 1,
-			Content: strings.TrimSpace(content),
+			Content: content,
 		}
 	}
 

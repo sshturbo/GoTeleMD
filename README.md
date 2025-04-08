@@ -1,4 +1,4 @@
-# tgmarkdown
+# GoTeleMD
 
 Conversor de Markdown estilo GitHub para MarkdownV2 do Telegram, com suporte a:
 
@@ -40,7 +40,7 @@ texto := `| Nome  | Idade |
 | Maria  | 30    |`
 
 // Tabela com alinhamento (centro para Nome, direita para Idade)
-resultado := tgmarkdown.Convert(texto, true, false, tgmarkdown.SAFETYLEVELBASIC)
+resultado := GoTeleMD.Convert(texto, true, false, GoTeleMD.SAFETYLEVELBASIC)
 ```
 
 ### Listas
@@ -49,32 +49,32 @@ texto := `- Item não numerado
 - Outro item
 1. Item numerado
 2. Outro numerado`
-resultado := tgmarkdown.Convert(texto, false, false, tgmarkdown.SAFETYLEVELBASIC)
+resultado := GoTeleMD.Convert(texto, false, false, GoTeleMD.SAFETYLEVELBASIC)
 ```
 
 ### Citações
 ```go
 texto := `> Uma citação simples
 > Com **formatação** em _markdown_`
-resultado := tgmarkdown.Convert(texto, false, false, tgmarkdown.SAFETYLEVELBASIC)
+resultado := GoTeleMD.Convert(texto, false, false, GoTeleMD.SAFETYLEVELBASIC)
 ```
 
 ### Links com Formatação
 ```go
 texto := `[Link com **negrito** e _itálico_](https://exemplo.com)`
-resultado := tgmarkdown.Convert(texto, false, false, tgmarkdown.SAFETYLEVELBASIC)
+resultado := GoTeleMD.Convert(texto, false, false, GoTeleMD.SAFETYLEVELBASIC)
 ```
 
 ### Código
 ```go
 texto := "Código `inline` e bloco:\n```go\nfmt.Println(\"olá\")\n```"
-resultado := tgmarkdown.Convert(texto, false, false, tgmarkdown.SAFETYLEVELBASIC)
+resultado := GoTeleMD.Convert(texto, false, false, GoTeleMD.SAFETYLEVELBASIC)
 ```
 
 ### Formatação
 ```go
 texto := "**Negrito** _itálico_ ~~riscado~~ [link](https://exemplo.com)"
-resultado := tgmarkdown.Convert(texto, false, false, tgmarkdown.SAFETYLEVELBASIC)
+resultado := GoTeleMD.Convert(texto, false, false, GoTeleMD.SAFETYLEVELBASIC)
 ```
 
 ### Mensagens Longas
@@ -82,7 +82,7 @@ A biblioteca quebra automaticamente mensagens longas respeitando o limite do Tel
 
 ```go
 textoLongo := strings.Repeat("Texto muito longo... ", 100)
-response := tgmarkdown.Convert(textoLongo, false, false, tgmarkdown.SAFETYLEVELBASIC)
+response := GoTeleMD.Convert(textoLongo, false, false, GoTeleMD.SAFETYLEVELBASIC)
 // Resultado será quebrado em partes menores que 4096 caracteres
 ```
 
@@ -94,11 +94,11 @@ import (
     "log"
     "time"
     tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-    tgmarkdown "github.com/sshturbo/GoTeleMD"
+    GoTeleMD "github.com/sshturbo/GoTeleMD"
 )
 
 func init() {
-    tgmarkdown.EnableLogs = true
+    GoTeleMD.EnableLogs = true
 }
 
 // Função para enviar uma única mensagem
@@ -115,7 +115,7 @@ func enviarMensagem(bot *tgbotapi.BotAPI, chatID int64, texto string) error {
 }
 
 // Função para enviar mensagem dividida em partes
-func enviarMensagemEmPartes(bot *tgbotapi.BotAPI, chatID int64, msgResponse tgmarkdown.MessageResponse) error {
+func enviarMensagemEmPartes(bot *tgbotapi.BotAPI, chatID int64, msgResponse GoTeleMD.MessageResponse) error {
     log.Printf("📨 Iniciando envio de mensagem em %d partes (ID: %s)...",
         msgResponse.TotalParts, msgResponse.MessageID)
 
@@ -160,11 +160,11 @@ func exemplo() {
 \`\`\`
 `
     // Converte o texto usando a lib
-    response := tgmarkdown.Convert(
+    response := GoTeleMD.Convert(
         textoLongo,
         false,          // alignTableCols
         false,          // ignoreTableSeparators
-        tgmarkdown.SAFETYLEVELBASIC,
+        GoTeleMD.SAFETYLEVELBASIC,
     )
 
     // Verifica se precisa enviar em partes

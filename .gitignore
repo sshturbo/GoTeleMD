@@ -1,13 +1,27 @@
-# Ignorar diretório examples
-./examples
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
 
-# Ignorar arquivo de teste específico
-tgmarkdown_test.go
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+vendor/
+
+# Go workspace file
+go.work
+
+# Ignorar diretório examples
+examples/
 
 # Arquivos de debug Go
 debug
-*.test
-*.out
 
 # Arquivos de IDE e editores
 .idea/

@@ -1,5 +1,4 @@
-// Package tgmarkdown fornece funcionalidades para converter markdown para o formato MarkdownV2 do Telegram
-package tgmarkdown
+package GoTeleMD
 
 import (
 	"github.com/sshturbo/GoTeleMD/internal"

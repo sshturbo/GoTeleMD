@@ -8,6 +8,18 @@ import (
 	"github.com/sshturbo/GoTeleMD/pkg/utils"
 )
 
+// SafetyLevel define os níveis de segurança para formatação de texto
+type SafetyLevel int
+
+const (
+	// SafetyLevelNone não aplica nenhuma formatação de segurança
+	SafetyLevelNone SafetyLevel = iota
+	// SafetyLevelMedium aplica formatação de segurança média
+	SafetyLevelMedium
+	// SafetyLevelHigh aplica formatação de segurança alta
+	SafetyLevelHigh
+)
+
 func ProcessText(text string, safetyLevel SafetyLevel) string {
 	if safetyLevel == SafetyLevelNone {
 		return text
@@ -191,8 +203,8 @@ func escapeCodeBlockContent(content string) string {
 	return result.String()
 }
 
-func ProcessTitle(input string, safetyLevel int) string {
-	if safetyLevel >= internal.SAFETYLEVELSTRICT {
+func ProcessTitle(input string, safetyLevel SafetyLevel) string {
+	if safetyLevel == SafetyLevelHigh {
 		return escapeSpecialChars(input)
 	}
 
@@ -207,8 +219,8 @@ func ProcessTitle(input string, safetyLevel int) string {
 	})
 }
 
-func ProcessList(input string, safetyLevel int) string {
-	if safetyLevel >= internal.SAFETYLEVELSTRICT {
+func ProcessList(input string, safetyLevel SafetyLevel) string {
+	if safetyLevel == SafetyLevelHigh {
 		return escapeSpecialChars(input)
 	}
 
@@ -237,7 +249,7 @@ func ProcessList(input string, safetyLevel int) string {
 			listCounter++
 		default:
 			// Para linhas que não são itens de lista, escapa se necessário
-			if safetyLevel == internal.SAFETYLEVELBASIC {
+			if safetyLevel == SafetyLevelMedium {
 				line = escapeNonFormatChars(line)
 			}
 			builder.WriteString(line)
@@ -249,8 +261,8 @@ func ProcessList(input string, safetyLevel int) string {
 	return strings.TrimSpace(builder.String())
 }
 
-func ProcessQuote(input string, safetyLevel int) string {
-	if safetyLevel >= internal.SAFETYLEVELSTRICT {
+func ProcessQuote(input string, safetyLevel SafetyLevel) string {
+	if safetyLevel == SafetyLevelHigh {
 		return escapeSpecialChars(input)
 	}
 

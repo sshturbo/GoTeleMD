@@ -107,7 +107,6 @@ func BreakLongText(input string) []string {
 	}
 
 	var result []string
-	inputLen := utf8.RuneCountInString(input)
 
 	// Special handling for code blocks
 	if strings.HasPrefix(input, "```") {

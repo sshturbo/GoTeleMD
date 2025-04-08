@@ -10,9 +10,9 @@ import (
 
 // Níveis de segurança para processamento de texto
 const (
-	SAFETYLEVELNONE   = internal.SAFETYLEVELNONE   // Sem segurança adicional
-	SAFETYLEVELBASIC  = internal.SAFETYLEVELBASIC  // Escapa caracteres especiais mantendo formatação
-	SAFETYLEVELSTRICT = internal.SAFETYLEVELSTRICT // Escapa todo o texto sem formatação
+	SAFETYLEVELNONE   = formatter.SafetyLevelNone   // Sem segurança adicional
+	SAFETYLEVELBASIC  = formatter.SafetyLevelMedium // Escapa caracteres especiais mantendo formatação
+	SAFETYLEVELSTRICT = formatter.SafetyLevelHigh   // Escapa todo o texto sem formatação
 )
 
 // Variáveis de configuração global
@@ -30,9 +30,16 @@ func init() {
 }
 
 func Convert(input string, alignTableCols, ignoreTableSeparators bool, safetyLevel ...int) string {
-	level := internal.SAFETYLEVELBASIC
+	level := formatter.SafetyLevelMedium
 	if len(safetyLevel) > 0 {
-		level = safetyLevel[0]
+		switch safetyLevel[0] {
+		case internal.SAFETYLEVELNONE:
+			level = formatter.SafetyLevelNone
+		case internal.SAFETYLEVELBASIC:
+			level = formatter.SafetyLevelMedium
+		case internal.SAFETYLEVELSTRICT:
+			level = formatter.SafetyLevelHigh
+		}
 	}
 
 	parts := parser.BreakLongText(input)
@@ -55,10 +62,10 @@ func Convert(input string, alignTableCols, ignoreTableSeparators bool, safetyLev
 	return strings.Join(outputParts, "\n\n")
 }
 
-func renderBlock(b internal.Block, alignTableCols, ignoreTableSeparators bool, safetyLevel int) string {
+func renderBlock(b internal.Block, alignTableCols, ignoreTableSeparators bool, safetyLevel formatter.SafetyLevel) string {
 	switch b.Type {
 	case internal.BlockCode:
-		if safetyLevel == internal.SAFETYLEVELSTRICT {
+		if safetyLevel == formatter.SafetyLevelHigh {
 			return formatter.ProcessText(b.Content, safetyLevel)
 		}
 		content := strings.TrimSpace(b.Content)

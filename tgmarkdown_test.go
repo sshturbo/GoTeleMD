@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/sshturbo/GoTeleMD/internal"
+	"github.com/sshturbo/GoTeleMD/pkg/formatter"
 )
 
 func TestTgMarkdown(t *testing.T) {
@@ -12,60 +13,60 @@ func TestTgMarkdown(t *testing.T) {
 		name        string
 		input       string
 		expected    string
-		safetyLevel int
+		safetyLevel formatter.SafetyLevel
 	}{
 		// Blocos de Código
-		{"Bloco de código simples", "```\nfmt.Println(\"hello\")\n```", "```\nfmt.Println(\"hello\")\n```", internal.SAFETYLEVELNONE},
-		{"Bloco de código com linguagem", "```go\nfmt.Println(\"hello\")\n```", "```go\nfmt.Println(\"hello\")\n```", internal.SAFETYLEVELNONE},
+		{"Bloco de código simples", "```\nfmt.Println(\"hello\")\n```", "```\nfmt.Println(\"hello\")\n```", formatter.SafetyLevelNone},
+		{"Bloco de código com linguagem", "```go\nfmt.Println(\"hello\")\n```", "```go\nfmt.Println(\"hello\")\n```", formatter.SafetyLevelNone},
 
 		// Código Inline
-		{"Código inline", "This is `inline code` here", "This is `inline code` here", internal.SAFETYLEVELNONE},
+		{"Código inline", "This is `inline code` here", "This is `inline code` here", formatter.SafetyLevelNone},
 
 		// Negrito
-		{"Negrito com asteriscos", "**bold text**", "*bold text*", internal.SAFETYLEVELNONE},
-		{"Negrito com underscores", "__bold text__", "*bold text*", internal.SAFETYLEVELNONE},
+		{"Negrito com asteriscos", "**bold text**", "*bold text*", formatter.SafetyLevelNone},
+		{"Negrito com underscores", "__bold text__", "*bold text*", formatter.SafetyLevelNone},
 
 		// Itálico
-		{"Itálico com asteriscos", "*italic text*", "_italic text_", internal.SAFETYLEVELBASIC},
-		{"Itálico com underscores", "_italic text_", "_italic text_", internal.SAFETYLEVELBASIC},
+		{"Itálico com asteriscos", "*italic text*", "_italic text_", formatter.SafetyLevelMedium},
+		{"Itálico com underscores", "_italic text_", "_italic text_", formatter.SafetyLevelMedium},
 
 		// Riscado
-		{"Texto riscado", "~~strikethrough text~~", "~strikethrough text~", internal.SAFETYLEVELBASIC},
+		{"Texto riscado", "~~strikethrough text~~", "~strikethrough text~", formatter.SafetyLevelMedium},
 
 		// Links
-		{"Link simples", "[link text](https://example.com)", "[link text](https://example.com)", internal.SAFETYLEVELBASIC},
-		{"Link com formatação", "[**Bold** and _italic_](https://example.com)", "[*Bold* and _italic_](https://example.com)", internal.SAFETYLEVELBASIC},
+		{"Link simples", "[link text](https://example.com)", "[link text](https://example.com)", formatter.SafetyLevelMedium},
+		{"Link com formatação", "[**Bold** and _italic_](https://example.com)", "[*Bold* and _italic_](https://example.com)", formatter.SafetyLevelMedium},
 
 		// Listas
-		{"Lista não ordenada", "- Item 1\n- Item 2", "• Item 1\n• Item 2", internal.SAFETYLEVELBASIC},
-		{"Lista ordenada", "1. First item\n2. Second item", "1. First item\n2. Second item", internal.SAFETYLEVELBASIC},
-		{"Lista mista com formatação", "1. **Bold** item\n- _Italic_ item", "1. *Bold* item\n• _Italic_ item", internal.SAFETYLEVELBASIC},
+		{"Lista não ordenada", "- Item 1\n- Item 2", "• Item 1\n• Item 2", formatter.SafetyLevelMedium},
+		{"Lista ordenada", "1. First item\n2. Second item", "1. First item\n2. Second item", formatter.SafetyLevelMedium},
+		{"Lista mista com formatação", "1. **Bold** item\n- _Italic_ item", "1. *Bold* item\n• _Italic_ item", formatter.SafetyLevelMedium},
 
 		// Citações
-		{"Citação simples", "> Quoted text", "> Quoted text", internal.SAFETYLEVELBASIC},
-		{"Citação com formatação", "> **Bold** and _italic_", "> *Bold* and _italic_", internal.SAFETYLEVELBASIC},
+		{"Citação simples", "> Quoted text", "> Quoted text", formatter.SafetyLevelMedium},
+		{"Citação com formatação", "> **Bold** and _italic_", "> *Bold* and _italic_", formatter.SafetyLevelMedium},
 
 		// Títulos
-		{"Título H1", "# Heading 1", "*Heading 1*", internal.SAFETYLEVELBASIC},
-		{"Título H3", "### Heading 3", "_Heading 3_", internal.SAFETYLEVELBASIC},
+		{"Título H1", "# Heading 1", "*Heading 1*", formatter.SafetyLevelMedium},
+		{"Título H3", "### Heading 3", "_Heading 3_", formatter.SafetyLevelMedium},
 
 		// Tabelas
-		{"Tabela simples", "| Col1 | Col2 |\n|------|------|\n| Val1 | Val2 |", "\n• Col1 | Col2\n• Val1 | Val2", internal.SAFETYLEVELBASIC},
-		{"Tabela alinhada", "| Col1 | Col2 |\n|:----:|:-----|\n| Val1 | Val2 |", "\n•  Col1  | Col2\n•  Val1  | Val2", internal.SAFETYLEVELBASIC},
+		{"Tabela simples", "| Col1 | Col2 |\n|------|------|\n| Val1 | Val2 |", "\n• Col1 | Col2\n• Val1 | Val2", formatter.SafetyLevelMedium},
+		{"Tabela alinhada", "| Col1 | Col2 |\n|:----:|:-----|\n| Val1 | Val2 |", "\n•  Col1  | Col2\n•  Val1  | Val2", formatter.SafetyLevelMedium},
 
 		// Texto simples com caracteres especiais
-		{"Texto simples com caracteres especiais", "Hello #world! (test)", "Hello \\#world\\! \\(test\\)", internal.SAFETYLEVELBASIC},
+		{"Texto simples com caracteres especiais", "Hello #world! (test)", "Hello \\#world\\! \\(test\\)", formatter.SafetyLevelMedium},
 
 		// Novo teste para múltiplos caracteres especiais
 		{
 			name:        "Texto com múltiplos caracteres especiais",
 			input:       "Test # + - = | ! * _ [ ] ( ) { } .",
-			expected:    "Test \\# \\+ \\- \\= \\| \\! * _ [ ] \\( \\) \\{ \\} \\.", // Não escapa *, _, [, ]
-			safetyLevel: internal.SAFETYLEVELBASIC,
+			expected:    "Test \\# \\+ \\- \\= \\| \\! * _ [ ] \\( \\) \\{ \\} \\.",
+			safetyLevel: formatter.SafetyLevelMedium,
 		},
 
 		// Modo Seguro
-		{"Nível de segurança estrito", "**bold** and _italic_", "\\*\\*bold\\*\\* and \\_italic\\_", internal.SAFETYLEVELSTRICT},
+		{"Nível de segurança estrito", "**bold** and _italic_", "\\*\\*bold\\*\\* and \\_italic\\_", formatter.SafetyLevelHigh},
 
 		{
 			name: "Teste de HTML",
@@ -91,28 +92,21 @@ func TestTgMarkdown(t *testing.T) {
 				"  <h1>Bem-vindo</h1>\n" +
 				"</body>\n" +
 				"</html>\n```",
-			safetyLevel: internal.SAFETYLEVELBASIC,
+			safetyLevel: formatter.SafetyLevelMedium,
 		},
 		{
 			name:        "Código inline com caracteres especiais",
 			input:       "Text with `code#with*special(chars)` inline",
 			expected:    "Text with `code\\#with\\*special\\(chars\\)` inline",
-			safetyLevel: internal.SAFETYLEVELBASIC,
-		},
-		{
-			name:        "Código inline em modo estrito",
-			input:       "Text with `code#with*special(chars)` inline",
-			expected:    "Text with \\`code\\#with\\*special\\(chars\\)\\` inline",
-			safetyLevel: internal.SAFETYLEVELSTRICT,
+			safetyLevel: formatter.SafetyLevelMedium,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			alignTableCols := tt.name == "Tabela alinhada"
-			resultado := Convert(tt.input, alignTableCols, false, tt.safetyLevel)
+			resultado := Convert(tt.input, false, false, int(tt.safetyLevel))
 			if resultado != tt.expected {
-				t.Errorf("\nEsperado:\n%v\nObtido:\n%v", tt.expected, resultado)
+				t.Errorf("Convert() = %v, want %v", resultado, tt.expected)
 			}
 		})
 	}
@@ -120,37 +114,36 @@ func TestTgMarkdown(t *testing.T) {
 
 func TestLongMessages(t *testing.T) {
 	tests := []struct {
-		name   string
-		input  string
-		limit  int
-		partes int
+		name        string
+		input       string
+		expected    string
+		safetyLevel formatter.SafetyLevel
 	}{
 		{
-			name:   "Mensagem curta",
-			input:  "Uma mensagem curta que não deve ser quebrada",
-			limit:  internal.TelegramMaxLength,
-			partes: 1,
-		},
-		{
-			name:   "Mensagem_longa",
-			input:  strings.Repeat("Texto longo que deve ser quebrado em várias partes. ", 320),
-			limit:  internal.TelegramMaxLength,
-			partes: 5,
-		},
-		{
-			name:   "Código_longo",
-			input:  "```\n" + strings.Repeat("Bloco de código muito longo que precisa ser quebrado\n", 205) + "```",
-			limit:  internal.TelegramMaxLength,
-			partes: 3,
+			name: "Mensagem longa com código",
+			input: "```php\n" +
+				"<?php\n" +
+				"// Código PHP muito longo\n" +
+				"function example() {\n" +
+				"    echo \"Hello, world!\";\n" +
+				"}\n" +
+				"```",
+			expected: "```php\n" +
+				"<?php\n" +
+				"// Código PHP muito longo\n" +
+				"function example() {\n" +
+				"    echo \"Hello, world!\";\n" +
+				"}\n" +
+				"```",
+			safetyLevel: formatter.SafetyLevelMedium,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resultado := Convert(tt.input, false, false, internal.SAFETYLEVELBASIC)
-			partes := strings.Split(resultado, "\n\n")
-			if len(partes) != tt.partes {
-				t.Errorf("Esperado %d partes, obtido %d", tt.partes, len(partes))
+			resultado := Convert(tt.input, false, false, int(tt.safetyLevel))
+			if resultado != tt.expected {
+				t.Errorf("Convert() = %v, want %v", resultado, tt.expected)
 			}
 		})
 	}

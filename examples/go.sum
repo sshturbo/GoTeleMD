@@ -6,3 +6,7 @@ github.com/sshturbo/GoTeleMD v0.1.10 h1:hHzr56Ei8eXLinVPwjg98++Zv2qdPQTyYbt4mOI3
 github.com/sshturbo/GoTeleMD v0.1.10/go.mod h1:9TgL1fbDy5Tx1mOypY+payEkVftzo4TmYPD2xk/SKl4=
 github.com/sshturbo/GoTeleMD v0.1.11 h1:ifTLuc1nYUOHi2ecOArA4W/H3s/UWQfjJlPgzdvTDUw=
 github.com/sshturbo/GoTeleMD v0.1.11/go.mod h1:9TgL1fbDy5Tx1mOypY+payEkVftzo4TmYPD2xk/SKl4=
+github.com/sshturbo/GoTeleMD v0.1.12 h1:wSQOfZnYMEg/PICKR0LNM7i7+I7qvF5pnMH1HGXXJEg=
+github.com/sshturbo/GoTeleMD v0.1.12/go.mod h1:9TgL1fbDy5Tx1mOypY+payEkVftzo4TmYPD2xk/SKl4=
+github.com/sshturbo/GoTeleMD v0.1.13 h1:KFrl+wOLEzyNI85aocQzg3/BdtYqGNQe0T0UKfru7SI=
+github.com/sshturbo/GoTeleMD v0.1.13/go.mod h1:9TgL1fbDy5Tx1mOypY+payEkVftzo4TmYPD2xk/SKl4=

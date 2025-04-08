@@ -1,5 +1,5 @@
 # Ignorar diretório examples
-/examples/
+./examples
 
 # Ignorar arquivo de teste específico
 tgmarkdown_test.go

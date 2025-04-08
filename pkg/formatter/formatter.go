@@ -158,7 +158,7 @@ func escapeNonFormatChars(text string) string {
 
 func escapeSpecialCharsInText(text string) string {
 	escaped := text
-	specialChars := []string{"#", "+", "-", "=", "|", ".", "!", "(", ")", "{", "}"}
+	specialChars := []string{"#", "+", "-", "_", "=", "|", ".", "!", "(", ")", "{", "}"}
 	for _, char := range specialChars {
 		escaped = strings.ReplaceAll(escaped, char, "\\"+char)
 	}

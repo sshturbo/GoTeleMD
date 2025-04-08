@@ -50,13 +50,12 @@ func TestTgMarkdown(t *testing.T) {
 		{"Título H3", "### Heading 3", "_Heading 3_", internal.SAFETYLEVELBASIC},
 
 		// Tabelas
-		{"Tabela simples", "| Col1 | Col2 |\n|------|------|\n| Val1 | Val2 |", "\n• Col1 | Col2\n• Val1 | Val2", internal.SAFETYLEVELBASIC},
-		{"Tabela alinhada", "| Col1 | Col2 |\n|:----:|:-----|\n| Val1 | Val2 |", "\n•  Col1  | Col2\n•  Val1  | Val2", internal.SAFETYLEVELBASIC},
+		{"Tabela simples", "| Col1 | Col2 |\n|------|------|\n| Val1 | Val2 |", "• Col1 | Col2\n• Val1 | Val2", internal.SAFETYLEVELBASIC},
+		{"Tabela alinhada", "| Col1 | Col2 |\n|:----:|:-----|\n| Val1 | Val2 |", "•  Col1  | Col2\n•  Val1  | Val2", internal.SAFETYLEVELBASIC},
 
 		// Texto simples com caracteres especiais
-		{"Texto simples com caracteres especiais", "Hello #world! (test)", "Hello \\#world\\! \\(test\\)", internal.SAFETYLEVELBASIC},
+		{"Texto simples com caracteres especiais", "Hello #world! (test).", "Hello \\#world\\! \\(test\\)\\.", internal.SAFETYLEVELBASIC},
 
-		// Novo teste para múltiplos caracteres especiais
 		{
 			name:        "Texto com múltiplos caracteres especiais",
 			input:       "Test # + - = | ! * _ [ ] ( ) { } .",
@@ -105,6 +104,30 @@ func TestTgMarkdown(t *testing.T) {
 			expected:    "Text with \\`code\\#with\\*special\\(chars\\)\\` inline",
 			safetyLevel: internal.SAFETYLEVELSTRICT,
 		},
+		{
+			name:        "Bloco de código longo não deve ser dividido",
+			input:       "```python\n" + strings.Repeat("print('teste')\n", 200) + "```",
+			expected:    "```python\n" + strings.Repeat("print('teste')\n", 200) + "```",
+			safetyLevel: internal.SAFETYLEVELBASIC,
+		},
+		{
+			name:        "Texto e bloco de código devem ser separados",
+			input:       strings.TrimSpace(strings.Repeat("Texto antes do código. ", 50)) + "\n```\nprint('teste')\n```\n" + strings.TrimSpace(strings.Repeat("Texto depois do código. ", 50)),
+			expected:    strings.TrimSpace(strings.Repeat("Texto antes do código\\. ", 50)) + "\n\n```\nprint('teste')\n```\n\n" + strings.TrimSpace(strings.Repeat("Texto depois do código\\. ", 50)),
+			safetyLevel: internal.SAFETYLEVELBASIC,
+		},
+		{
+			name:        "Múltiplos blocos de código devem ser preservados",
+			input:       "```js\nconsole.log('primeiro');\n```\nTexto entre blocos.\n```python\nprint('segundo')\n```",
+			expected:    "```js\nconsole.log('primeiro');\n```\n\nTexto entre blocos\\.\n\n```python\nprint('segundo')\n```",
+			safetyLevel: internal.SAFETYLEVELBASIC,
+		},
+		{
+			name:        "Bloco de código com caracteres especiais",
+			input:       "```\n# Comentário com #hashtag e @menção.\nprint('teste!@#$%')\n```",
+			expected:    "```\n# Comentário com #hashtag e @menção.\nprint('teste!@#$%')\n```",
+			safetyLevel: internal.SAFETYLEVELBASIC,
+		},
 	}
 
 	for _, tt := range tests {
@@ -151,6 +174,55 @@ func TestLongMessages(t *testing.T) {
 			partes := strings.Split(resultado, "\n\n")
 			if len(partes) != tt.partes {
 				t.Errorf("Esperado %d partes, obtido %d", tt.partes, len(partes))
+			}
+		})
+	}
+}
+
+func TestLongMessagesWithCodeBlocks(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected []string
+	}{
+		{
+			name: "Mensagem longa com blocos de código",
+			input: strings.Repeat("Texto antes. ", 200) + "\n" +
+				"```python\n" + strings.Repeat("print('teste')\n", 50) + "```\n" +
+				strings.Repeat("Texto depois. ", 200),
+			expected: []string{
+				strings.Repeat("Texto antes\\. ", 200),
+				"```python\n" + strings.Repeat("print('teste')\n", 50) + "```",
+				strings.Repeat("Texto depois\\. ", 200),
+			},
+		},
+		{
+			name: "Múltiplos blocos de código em mensagem longa",
+			input: "```js\nconsole.log('primeiro');\n```\n" +
+				strings.Repeat("Texto no meio. ", 200) + "\n" +
+				"```python\nprint('segundo')\n```",
+			expected: []string{
+				"```js\nconsole.log('primeiro');\n```",
+				strings.Repeat("Texto no meio\\. ", 200),
+				"```python\nprint('segundo')\n```",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resultado := Convert(tt.input, false, false, internal.SAFETYLEVELBASIC)
+			partes := strings.Split(resultado, "\n\n")
+
+			if len(partes) != len(tt.expected) {
+				t.Errorf("Número de partes incorreto. Esperado %d, obtido %d", len(tt.expected), len(partes))
+				return
+			}
+
+			for i, parte := range partes {
+				if parte != tt.expected[i] {
+					t.Errorf("Parte %d incorreta.\nEsperado:\n%s\nObtido:\n%s", i, tt.expected[i], parte)
+				}
 			}
 		})
 	}

@@ -1,11 +1,10 @@
+// Package tgmarkdown fornece funcionalidades para converter markdown para o formato MarkdownV2 do Telegram
 package tgmarkdown
 
 import (
-	"strings"
-
 	"github.com/sshturbo/GoTeleMD/internal"
 	"github.com/sshturbo/GoTeleMD/pkg/formatter"
-	"github.com/sshturbo/GoTeleMD/pkg/parser"
+	"github.com/sshturbo/GoTeleMD/pkg/utils"
 )
 
 // Níveis de segurança para processamento de texto
@@ -27,65 +26,21 @@ func init() {
 	internal.EnableLogs = &EnableLogs
 	internal.TruncateInsteadOfBreak = &TruncateInsteadOfBreak
 	internal.MaxWordLength = &MaxWordLength
+
+	// Inicializa o logger
+	utils.InitLogger(&EnableLogs)
 }
 
+// Convert converte texto markdown para o formato MarkdownV2 do Telegram
+// com suporte a divisão de mensagens longas e preservação de blocos de código.
+// alignTableCols: alinha colunas de tabelas
+// ignoreTableSeparators: ignora separadores de tabela
+// safetyLevel: nível de segurança para escape de caracteres
 func Convert(input string, alignTableCols, ignoreTableSeparators bool, safetyLevel ...int) string {
 	level := internal.SAFETYLEVELBASIC
 	if len(safetyLevel) > 0 {
 		level = safetyLevel[0]
 	}
 
-	parts := parser.BreakLongText(input)
-	var outputParts []string
-
-	for _, part := range parts {
-		blocks := parser.Tokenize(part)
-		var output strings.Builder
-
-		for i, b := range blocks {
-			rendered := renderBlock(b, alignTableCols, ignoreTableSeparators, level)
-			if i > 0 {
-				output.WriteString("\n\n")
-			}
-			output.WriteString(rendered)
-		}
-		outputParts = append(outputParts, output.String())
-	}
-
-	return strings.Join(outputParts, "\n\n")
-}
-
-func renderBlock(b internal.Block, alignTableCols, ignoreTableSeparators bool, safetyLevel int) string {
-	switch b.Type {
-	case internal.BlockCode:
-		if safetyLevel == internal.SAFETYLEVELSTRICT {
-			return formatter.ProcessText(b.Content, safetyLevel)
-		}
-		content := strings.TrimSpace(b.Content)
-		// Se já tem as marcações de código, retorna o conteúdo como está
-		if strings.HasPrefix(content, "```") && strings.HasSuffix(content, "```") {
-			return content
-		}
-		// Se está vazio, retorna marcadores vazios
-		if content == "" {
-			return "```\n```"
-		}
-		// Remove marcações existentes se houver e adiciona novas
-		content = strings.TrimPrefix(content, "```")
-		content = strings.TrimSuffix(content, "```")
-		return "```\n" + strings.TrimSpace(content) + "\n```"
-	case internal.BlockText:
-		return formatter.ProcessText(b.Content, safetyLevel)
-	case internal.BlockTable:
-		lines := strings.Split(b.Content, "\n")
-		return formatter.ConvertTable(lines, alignTableCols, ignoreTableSeparators)
-	case internal.BlockTitle:
-		return formatter.ProcessTitle(b.Content, safetyLevel)
-	case internal.BlockList:
-		return formatter.ProcessList(b.Content, safetyLevel)
-	case internal.BlockQuote:
-		return formatter.ProcessQuote(b.Content, safetyLevel)
-	default:
-		return formatter.ProcessText(b.Content, safetyLevel)
-	}
+	return formatter.ConvertMarkdown(input, alignTableCols, ignoreTableSeparators, level)
 }

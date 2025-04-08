@@ -8,6 +8,8 @@ import (
 	"github.com/sshturbo/GoTeleMD/pkg/utils"
 )
 
+// Tokenize breaks down the input text into blocks of different types (code, text, table, etc.).
+// It handles special markdown syntax like code blocks, tables, titles, and lists.
 func Tokenize(input string) []internal.Block {
 	var blocks []internal.Block
 	lines := strings.Split(input, "\n")
@@ -99,6 +101,11 @@ func Tokenize(input string) []internal.Block {
 	return blocks
 }
 
+// BreakLongText splits long text into smaller parts while preserving code blocks intact.
+// It ensures that:
+// 1. Code blocks are never split - they are kept as complete units
+// 2. Regular text is split at appropriate boundaries when needed
+// 3. The resulting parts do not exceed Telegram's message length limit
 func BreakLongText(input string) []string {
 	effectiveLimit := internal.TelegramMaxLength
 
@@ -107,132 +114,147 @@ func BreakLongText(input string) []string {
 	}
 
 	var result []string
-	inputLen := utf8.RuneCountInString(input)
+	var currentPart strings.Builder
+	var codeBuffer strings.Builder
+	var inCodeBlock bool
 
-	if strings.HasPrefix(input, "```") && strings.HasSuffix(input, "```") {
-		if inputLen <= effectiveLimit {
-			return []string{input}
-		}
-		return splitLongCodeBlock(input, effectiveLimit)
-	}
+	lines := strings.Split(strings.TrimSpace(input), "\n")
 
-	paragraphs := strings.Split(input, "\n\n")
-	currentPart := strings.Builder{}
-	inCodeBlock := false
-	codeBlockBuffer := strings.Builder{}
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
+		isCodeDelimiter := strings.HasPrefix(line, "```")
 
-	for _, paragraph := range paragraphs {
-		if strings.HasPrefix(paragraph, "```") {
+		if isCodeDelimiter {
 			if inCodeBlock {
-				inCodeBlock = false
-				codeBlockBuffer.WriteString(paragraph)
-				codeBlockContent := codeBlockBuffer.String()
-				if utf8.RuneCountInString(codeBlockContent) <= effectiveLimit {
-					if currentPart.Len() > 0 {
-						result = append(result, currentPart.String())
-						currentPart.Reset()
-					}
-					result = append(result, codeBlockContent)
-				} else {
-					parts := splitLongCodeBlock(codeBlockContent, effectiveLimit)
-					if currentPart.Len() > 0 {
-						result = append(result, currentPart.String())
-						currentPart.Reset()
-					}
-					result = append(result, parts...)
+				// Fechando bloco de código
+				if err := handleCodeBlockEnd(&codeBuffer, &currentPart, line, &result); err != nil {
+					utils.LogError("Erro ao processar fim do bloco de código: %v", err)
 				}
-				codeBlockBuffer.Reset()
+				inCodeBlock = false
 			} else {
-				if currentPart.Len() > 0 {
-					result = append(result, currentPart.String())
-					currentPart.Reset()
+				// Iniciando bloco de código
+				if err := handleCodeBlockStart(&currentPart, &codeBuffer, line, &result); err != nil {
+					utils.LogError("Erro ao iniciar bloco de código: %v", err)
 				}
 				inCodeBlock = true
-				codeBlockBuffer.WriteString(paragraph)
-				codeBlockBuffer.WriteString("\n\n")
 			}
 			continue
 		}
 
 		if inCodeBlock {
-			codeBlockBuffer.WriteString(paragraph)
-			codeBlockBuffer.WriteString("\n\n")
+			codeBuffer.WriteString(line)
+			if i < len(lines)-1 {
+				codeBuffer.WriteString("\n")
+			}
 			continue
 		}
 
-		paragraphLen := utf8.RuneCountInString(paragraph)
-
-		if paragraphLen > effectiveLimit {
-			if currentPart.Len() > 0 {
-				result = append(result, currentPart.String())
-				currentPart.Reset()
-			}
-			parts := splitLongLine(paragraph, effectiveLimit)
-			result = append(result, parts...)
-		} else if currentPart.Len()+paragraphLen+2 > effectiveLimit {
-			result = append(result, currentPart.String())
-			currentPart.Reset()
-			currentPart.WriteString(paragraph)
-		} else {
-			if currentPart.Len() > 0 {
-				currentPart.WriteString("\n\n")
-			}
-			currentPart.WriteString(paragraph)
+		// Processamento de texto normal
+		if err := handleRegularText(&currentPart, line, effectiveLimit, &result); err != nil {
+			utils.LogError("Erro ao processar texto regular: %v", err)
 		}
 	}
 
-	if inCodeBlock {
-		codeBlockContent := codeBlockBuffer.String()
-		parts := splitLongLine(codeBlockContent, effectiveLimit)
-		if currentPart.Len() > 0 {
-			result = append(result, currentPart.String())
-			currentPart.Reset()
-		}
-		result = append(result, parts...)
-	} else if currentPart.Len() > 0 {
-		result = append(result, currentPart.String())
+	if currentPart.Len() > 0 {
+		result = append(result, strings.TrimSpace(currentPart.String()))
 	}
 
 	return result
 }
 
-func splitLongCodeBlock(input string, limit int) []string {
-	var parts []string
-	lines := strings.Split(input, "\n")
-	currentPart := strings.Builder{}
-	header := lines[0]
-
-	for i, line := range lines[1:] {
-		lineWithNewline := line + "\n"
-		if i == len(lines)-2 {
-			lineWithNewline = line
-		}
-
-		if currentPart.Len() == 0 {
-			currentPart.WriteString(header)
-			currentPart.WriteString("\n")
-		}
-
-		if utf8.RuneCountInString(currentPart.String()+lineWithNewline) > limit-3 {
-			currentPart.WriteString("```")
-			parts = append(parts, currentPart.String())
-			currentPart.Reset()
-			currentPart.WriteString(header)
-			currentPart.WriteString("\n")
-			currentPart.WriteString(lineWithNewline)
-		} else {
-			currentPart.WriteString(lineWithNewline)
-		}
-	}
+// handleCodeBlockEnd processa o final de um bloco de código
+func handleCodeBlockEnd(codeBuffer, currentPart *strings.Builder, line string, result *[]string) error {
+	codeBuffer.WriteString(line)
+	codeContent := codeBuffer.String()
 
 	if currentPart.Len() > 0 {
-		currentPart.WriteString("```")
-		parts = append(parts, currentPart.String())
+		*result = append(*result, currentPart.String())
+		currentPart.Reset()
 	}
 
-	return parts
+	// Se o conteúdo do bloco de código for maior que o limite, divide em partes
+	if utf8.RuneCountInString(codeContent) > internal.TelegramMaxLength {
+		lines := strings.Split(codeContent, "\n")
+		language := ""
+
+		// Extrai a linguagem se especificada
+		if strings.HasPrefix(lines[0], "```") && len(lines[0]) > 3 {
+			language = strings.TrimPrefix(lines[0], "```")
+		}
+
+		var currentBlock strings.Builder
+		currentBlock.WriteString("```")
+		if language != "" {
+			currentBlock.WriteString(language)
+		}
+		currentBlock.WriteString("\n")
+
+		for i := 1; i < len(lines)-1; i++ { // Ignora primeira e última linha (```)
+			line := lines[i] + "\n"
+			if currentBlock.Len()+len(line) > internal.TelegramMaxLength-4 { // -4 para o fechamento do bloco
+				currentBlock.WriteString("```")
+				*result = append(*result, currentBlock.String())
+				currentBlock.Reset()
+				currentBlock.WriteString("```")
+				if language != "" {
+					currentBlock.WriteString(language)
+				}
+				currentBlock.WriteString("\n")
+			}
+			currentBlock.WriteString(line)
+		}
+
+		currentBlock.WriteString("```")
+		*result = append(*result, currentBlock.String())
+	} else {
+		*result = append(*result, codeContent)
+	}
+
+	codeBuffer.Reset()
+	return nil
 }
 
+// handleCodeBlockStart processa o início de um bloco de código
+func handleCodeBlockStart(currentPart, codeBuffer *strings.Builder, line string, result *[]string) error {
+	if currentPart.Len() > 0 {
+		*result = append(*result, currentPart.String())
+		currentPart.Reset()
+	}
+
+	codeBuffer.WriteString(line)
+	codeBuffer.WriteString("\n")
+	return nil
+}
+
+// handleRegularText processa texto normal (fora de blocos de código)
+func handleRegularText(currentPart *strings.Builder, line string, limit int, result *[]string) error {
+	lineLen := utf8.RuneCountInString(line)
+	if currentPart.Len()+lineLen+1 > limit {
+		if lineLen > limit {
+			parts := splitLongLine(line, limit)
+			for _, part := range parts {
+				if currentPart.Len() > 0 {
+					*result = append(*result, currentPart.String())
+					currentPart.Reset()
+				}
+				*result = append(*result, part)
+			}
+		} else {
+			*result = append(*result, currentPart.String())
+			currentPart.Reset()
+			currentPart.WriteString(line)
+		}
+	} else {
+		if currentPart.Len() > 0 {
+			currentPart.WriteString("\n")
+		}
+		currentPart.WriteString(line)
+	}
+	return nil
+}
+
+// splitLongLine divide uma linha longa em partes menores respeitando
+// o limite de caracteres e tentando quebrar em espaços entre palavras
 func splitLongLine(input string, limit int) []string {
 	if utf8.RuneCountInString(input) <= limit {
 		return []string{input}

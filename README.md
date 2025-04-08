@@ -94,7 +94,8 @@ import (
     "log"
     "time"
     tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-    GoTeleMD "github.com/sshturbo/GoTeleMD"
+    GoTeleMD "github.com/sshturbo/GoTeleMD@latest"
+    "github.com/sshturbo/GoTeleMD/pkg/types"
 )
 
 func init() {

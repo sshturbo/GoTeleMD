@@ -181,33 +181,67 @@ func ProcessList(input string, safetyLevel int) string {
 	var builder strings.Builder
 	lines := strings.Split(input, "\n")
 	listCounter := 1
+	isFirstItem := true
+	lastLineWasList := false
 
 	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		if trimmedLine == "" {
+			if lastLineWasList {
+				builder.WriteString("\n\n")
+				lastLineWasList = false
+			} else {
+				builder.WriteString("\n")
+			}
+			isFirstItem = true
+			continue
+		}
+
 		switch {
 		case utils.ListItemPattern.MatchString(line):
+			if !isFirstItem && lastLineWasList {
+				builder.WriteString("\n")
+			}
 			match := utils.ListItemPattern.FindStringSubmatch(line)
 			item := match[1]
 			item = ProcessInlineFormatting(item)
 			item = escapeNonFormatChars(item)
-			builder.WriteString(fmt.Sprintf("• %s\n", item))
+			builder.WriteString(fmt.Sprintf("• %s", item))
+			isFirstItem = false
+			lastLineWasList = true
 		case utils.OrderedListPattern.MatchString(line):
+			if !isFirstItem && lastLineWasList {
+				builder.WriteString("\n")
+			}
 			match := utils.OrderedListPattern.FindStringSubmatch(line)
 			item := match[1]
 			item = ProcessInlineFormatting(item)
 			item = escapeNonFormatChars(item)
-			builder.WriteString(fmt.Sprintf("%d. %s\n", listCounter, item))
+			builder.WriteString(fmt.Sprintf("%d\\. %s", listCounter, item))
 			listCounter++
+			isFirstItem = false
+			lastLineWasList = true
 		default:
+			if lastLineWasList {
+				builder.WriteString("\n\n")
+			} else if !isFirstItem {
+				builder.WriteString("\n")
+			}
 			if safetyLevel == internal.SAFETYLEVELBASIC {
 				line = escapeNonFormatChars(line)
 			}
 			builder.WriteString(line)
-			builder.WriteString("\n")
 			listCounter = 1
+			isFirstItem = false
+			lastLineWasList = false
 		}
 	}
 
-	return strings.TrimSpace(builder.String())
+	result := strings.TrimSpace(builder.String())
+	if lastLineWasList {
+		result += "\n"
+	}
+	return result
 }
 
 func ProcessQuote(input string, safetyLevel int) string {

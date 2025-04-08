@@ -27,12 +27,19 @@ func ConvertMarkdown(input string, alignTableCols, ignoreTableSeparators bool, s
 
 		for i, b := range blocks {
 			if i > 0 {
-				if (b.Type == internal.BlockCode || blocks[i-1].Type == internal.BlockCode) && b.Type != blocks[i-1].Type {
+				if b.Type == internal.BlockTitle || blocks[i-1].Type == internal.BlockTitle {
+					output.WriteString("\n\n")
+				} else if b.Type == internal.BlockCode || blocks[i-1].Type == internal.BlockCode {
+					output.WriteString("\n\n")
+				} else if b.Type == internal.BlockList || blocks[i-1].Type == internal.BlockList {
+					output.WriteString("\n\n")
+				} else {
 					output.WriteString("\n\n")
 				}
 			}
 
-			output.WriteString(RenderBlock(b, alignTableCols, ignoreTableSeparators, safetyLevel))
+			rendered := RenderBlock(b, alignTableCols, ignoreTableSeparators, safetyLevel)
+			output.WriteString(rendered)
 		}
 
 		outputParts = append(outputParts, strings.TrimSpace(output.String()))

@@ -131,7 +131,7 @@ func BreakLongText(input string) types.MessageResponse {
 
 	shouldStartNewPart := func(block internal.Block, nextBlock *internal.Block) bool {
 		if block.Type == internal.BlockTitle && nextBlock != nil {
-			return currentLength > int(float64(effectiveLimit)*1.5) 
+			return currentLength > int(float64(effectiveLimit)*1.5)
 		}
 
 		if block.Type == internal.BlockCode && utf8.RuneCountInString(block.Content) > effectiveLimit/2 {
@@ -149,13 +149,15 @@ func BreakLongText(input string) types.MessageResponse {
 		var groupContent strings.Builder
 		for i, block := range currentGroup {
 			if i > 0 {
-				if block.Type == internal.BlockTitle {
+				if block.Type == internal.BlockTitle || block.Type == internal.BlockList {
 					groupContent.WriteString("\n\n")
 				} else if block.Type == internal.BlockCode {
 					if currentGroup[i-1].Type != internal.BlockCode {
 						groupContent.WriteString("\n\n")
 					}
 				} else if currentGroup[i-1].Type == internal.BlockCode {
+					groupContent.WriteString("\n\n")
+				} else if currentGroup[i-1].Type == internal.BlockList || currentGroup[i-1].Type == internal.BlockTitle {
 					groupContent.WriteString("\n\n")
 				} else {
 					groupContent.WriteString("\n\n")
@@ -168,13 +170,21 @@ func BreakLongText(input string) types.MessageResponse {
 					content = "```\n" + content + "\n```"
 				}
 				groupContent.WriteString(content)
+			} else if block.Type == internal.BlockList {
+				lines := strings.Split(block.Content, "\n")
+				for j, line := range lines {
+					if j > 0 {
+						groupContent.WriteString("\n")
+					}
+					groupContent.WriteString(line)
+				}
 			} else {
 				groupContent.WriteString(block.Content)
 			}
 		}
 
 		content := groupContent.String()
-		if utf8.RuneCountInString(content) > 50 { 
+		if utf8.RuneCountInString(content) > 50 {
 			parts = append(parts, content)
 		} else {
 			if len(parts) > 0 {
@@ -217,7 +227,7 @@ func BreakLongText(input string) types.MessageResponse {
 
 		additionalLength := blockLength
 		if len(currentGroup) > 0 {
-			additionalLength += 2 
+			additionalLength += 2
 		}
 
 		if shouldStartNewPart(block, nextBlock) {
@@ -268,7 +278,7 @@ func divideCodeBlock(content string, limit int) []string {
 
 	codeContent := strings.Join(lines[1:len(lines)-1], "\n")
 
-	overhead := 6 
+	overhead := 6
 	if language != "" {
 		overhead += len(language)
 	}
@@ -279,7 +289,7 @@ func divideCodeBlock(content string, limit int) []string {
 	currentLength := 0
 
 	for _, line := range strings.Split(codeContent, "\n") {
-		lineLength := utf8.RuneCountInString(line) + 1 
+		lineLength := utf8.RuneCountInString(line) + 1
 
 		if lineLength > effectiveLimit {
 			if currentPart.Len() > 0 {

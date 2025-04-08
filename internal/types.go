@@ -27,20 +27,5 @@ const (
 const TelegramMaxLength = 4096
 
 var (
-	EnableLogs             *bool
-	TruncateInsteadOfBreak *bool
-	MaxWordLength          *int
+	EnableLogs *bool
 )
-
-// MessagePart representa uma parte individual da mensagem
-type MessagePart struct {
-	Part    int    `json:"part"`
-	Content string `json:"content"`
-}
-
-// MessageResponse representa a resposta em formato JSON com todas as partes da mensagem
-type MessageResponse struct {
-	MessageID  string        `json:"message_id"`
-	TotalParts int           `json:"total_parts"`
-	Parts      []MessagePart `json:"parts"`
-}

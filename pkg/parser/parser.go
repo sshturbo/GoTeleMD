@@ -108,11 +108,14 @@ func Tokenize(input string) []internal.Block {
 	return blocks
 }
 
-func BreakLongText(input string) types.MessageResponse {
-	blocks := Tokenize(input)
-	effectiveLimit := internal.TelegramMaxLength
+func BreakLongText(input string, maxLength int) (types.MessageResponse, error) {
+	if maxLength <= 0 {
+		maxLength = internal.TelegramMaxLength
+	}
 
-	if totalLen := utf8.RuneCountInString(input); totalLen <= effectiveLimit {
+	blocks := Tokenize(input)
+
+	if totalLen := utf8.RuneCountInString(input); totalLen <= maxLength {
 		return types.MessageResponse{
 			MessageID:  generateMessageID(),
 			TotalParts: 1,
@@ -122,7 +125,7 @@ func BreakLongText(input string) types.MessageResponse {
 					Content: input,
 				},
 			},
-		}
+		}, nil
 	}
 
 	var parts []string
@@ -131,33 +134,31 @@ func BreakLongText(input string) types.MessageResponse {
 
 	shouldStartNewPart := func(block internal.Block, nextBlock *internal.Block) bool {
 		if block.Type == internal.BlockTitle && nextBlock != nil {
-			return currentLength > int(float64(effectiveLimit)*1.5)
+			return currentLength > int(float64(maxLength)*1.5)
 		}
 
-		if block.Type == internal.BlockCode && utf8.RuneCountInString(block.Content) > effectiveLimit/2 {
+		if block.Type == internal.BlockCode && utf8.RuneCountInString(block.Content) > maxLength/2 {
 			return true
 		}
 
-		return currentLength > effectiveLimit
+		return currentLength > maxLength
 	}
 
-	processGroup := func() {
+	processGroup := func() error {
 		if len(currentGroup) == 0 {
-			return
+			return nil
 		}
 
 		var groupContent strings.Builder
 		for i, block := range currentGroup {
 			if i > 0 {
-				if block.Type == internal.BlockTitle || block.Type == internal.BlockList {
+				if block.Type == internal.BlockTitle {
 					groupContent.WriteString("\n\n")
 				} else if block.Type == internal.BlockCode {
 					if currentGroup[i-1].Type != internal.BlockCode {
 						groupContent.WriteString("\n\n")
 					}
 				} else if currentGroup[i-1].Type == internal.BlockCode {
-					groupContent.WriteString("\n\n")
-				} else if currentGroup[i-1].Type == internal.BlockList || currentGroup[i-1].Type == internal.BlockTitle {
 					groupContent.WriteString("\n\n")
 				} else {
 					groupContent.WriteString("\n\n")
@@ -170,20 +171,16 @@ func BreakLongText(input string) types.MessageResponse {
 					content = "```\n" + content + "\n```"
 				}
 				groupContent.WriteString(content)
-			} else if block.Type == internal.BlockList {
-				lines := strings.Split(block.Content, "\n")
-				for j, line := range lines {
-					if j > 0 {
-						groupContent.WriteString("\n")
-					}
-					groupContent.WriteString(line)
-				}
 			} else {
 				groupContent.WriteString(block.Content)
 			}
 		}
 
 		content := groupContent.String()
+		if utf8.RuneCountInString(content) > maxLength {
+			return types.NewError(types.ErrMessageTooLong, "content exceeds maximum length", nil)
+		}
+
 		if utf8.RuneCountInString(content) > 50 {
 			parts = append(parts, content)
 		} else {
@@ -197,9 +194,9 @@ func BreakLongText(input string) types.MessageResponse {
 				}
 				combinedContent := lastPart + "\n" + content
 
-				if utf8.RuneCountInString(combinedContent) <= effectiveLimit {
+				if utf8.RuneCountInString(combinedContent) <= maxLength {
 					parts[len(parts)-1] = combinedContent
-					return
+					return nil
 				}
 			}
 			parts = append(parts, content)
@@ -207,6 +204,7 @@ func BreakLongText(input string) types.MessageResponse {
 
 		currentGroup = nil
 		currentLength = 0
+		return nil
 	}
 
 	for i := 0; i < len(blocks); i++ {
@@ -218,9 +216,14 @@ func BreakLongText(input string) types.MessageResponse {
 
 		blockLength := utf8.RuneCountInString(block.Content)
 
-		if block.Type == internal.BlockCode && blockLength > effectiveLimit {
-			processGroup()
-			codeParts := divideCodeBlock(block.Content, effectiveLimit)
+		if block.Type == internal.BlockCode && blockLength > maxLength {
+			if err := processGroup(); err != nil {
+				return types.MessageResponse{}, err
+			}
+			codeParts, err := divideCodeBlock(block.Content, maxLength)
+			if err != nil {
+				return types.MessageResponse{}, err
+			}
 			parts = append(parts, codeParts...)
 			continue
 		}
@@ -231,8 +234,8 @@ func BreakLongText(input string) types.MessageResponse {
 		}
 
 		if shouldStartNewPart(block, nextBlock) {
-			if len(currentGroup) > 0 {
-				processGroup()
+			if err := processGroup(); err != nil {
+				return types.MessageResponse{}, err
 			}
 			if block.Type == internal.BlockCode {
 				parts = append(parts, block.Content)
@@ -240,15 +243,19 @@ func BreakLongText(input string) types.MessageResponse {
 			}
 		}
 
-		if currentLength+additionalLength > effectiveLimit {
-			processGroup()
+		if currentLength+additionalLength > maxLength {
+			if err := processGroup(); err != nil {
+				return types.MessageResponse{}, err
+			}
 		}
 
 		currentGroup = append(currentGroup, block)
 		currentLength += additionalLength
 	}
 
-	processGroup()
+	if err := processGroup(); err != nil {
+		return types.MessageResponse{}, err
+	}
 
 	messageParts := make([]types.MessagePart, len(parts))
 	for i, content := range parts {
@@ -262,13 +269,13 @@ func BreakLongText(input string) types.MessageResponse {
 		MessageID:  generateMessageID(),
 		TotalParts: len(messageParts),
 		Parts:      messageParts,
-	}
+	}, nil
 }
 
-func divideCodeBlock(content string, limit int) []string {
+func divideCodeBlock(content string, maxLength int) ([]string, error) {
 	lines := strings.Split(content, "\n")
 	if len(lines) < 2 {
-		return []string{content}
+		return []string{content}, nil
 	}
 
 	language := ""
@@ -282,7 +289,7 @@ func divideCodeBlock(content string, limit int) []string {
 	if language != "" {
 		overhead += len(language)
 	}
-	effectiveLimit := limit - overhead
+	effectiveLimit := maxLength - overhead
 
 	var parts []string
 	var currentPart strings.Builder
@@ -329,7 +336,7 @@ func divideCodeBlock(content string, limit int) []string {
 		parts = append(parts, formatCodeBlock(currentPart.String(), language))
 	}
 
-	return parts
+	return parts, nil
 }
 
 func formatCodeBlock(content string, language string) string {

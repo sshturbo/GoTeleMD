@@ -14,21 +14,45 @@ const (
 	SAFETYLEVELSTRICT = internal.SAFETYLEVELSTRICT
 )
 
-var (
-	EnableLogs = false
-)
-
-func init() {
-	internal.EnableLogs = &EnableLogs
-	utils.InitLogger(&EnableLogs)
+type Converter struct {
+	config *types.Config
 }
 
+func NewConverter(options ...types.Option) *Converter {
+	config := types.DefaultConfig()
+	for _, opt := range options {
+		opt(config)
+	}
+
+	utils.InitLogger(&config.EnableDebugLogs)
+	return &Converter{config: config}
+}
+
+func (c *Converter) Convert(input string) (types.MessageResponse, error) {
+	if input == "" {
+		return types.MessageResponse{}, types.NewError(types.ErrInvalidInput, "input cannot be empty", nil)
+	}
+
+	resultado, err := formatter.ConvertMarkdown(input, c.config)
+	if err != nil {
+		return types.MessageResponse{}, err
+	}
+	return parser.BreakLongText(resultado, c.config.MaxMessageLength)
+}
+
+// Deprecated: Use NewConverter and Convert instead
 func Convert(input string, alignTableCols, ignoreTableSeparators bool, safetyLevel ...int) types.MessageResponse {
 	level := internal.SAFETYLEVELBASIC
 	if len(safetyLevel) > 0 {
 		level = safetyLevel[0]
 	}
 
-	resultado := formatter.ConvertMarkdown(input, alignTableCols, ignoreTableSeparators, level)
-	return parser.BreakLongText(resultado)
+	config := types.DefaultConfig()
+	config.SafetyLevel = level
+	config.AlignTableColumns = alignTableCols
+	config.IgnoreTableSeparator = ignoreTableSeparators
+
+	conv := &Converter{config: config}
+	response, _ := conv.Convert(input)
+	return response
 }

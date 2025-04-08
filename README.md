@@ -1,17 +1,17 @@
 # GoTeleMD
 
-Conversor de Markdown estilo GitHub para MarkdownV2 do Telegram, com suporte a:
+GoTeleMD é uma biblioteca Go para converter Markdown em formato compatível com Telegram MarkdownV2.
 
-- Tabelas alinhadas (esquerda `:---`, centro `:---:`, direita `---:`)
-- Códigos (inline e bloco)
-- Negrito, itálico, riscado, links (com suporte a formatação interna)
-- Listas ordenadas e não-ordenadas
-- Citações (blockquotes)
-- Títulos (H1-H2 em negrito, H3-H6 em itálico)
-- Escape automático de caracteres
-- Quebra segura de mensagens grandes
-- Logs ativáveis para debug
-- Níveis de segurança configuráveis
+## Características
+
+- Conversão completa de Markdown para Telegram MarkdownV2
+- Suporte para todos os elementos Markdown comuns
+- Divisão automática de mensagens longas
+- Sistema de configuração flexível
+- Logs detalhados para debug
+- Formatação de tabelas com alinhamento
+- Suporte para blocos de código com syntax highlighting
+- Preservação inteligente de quebras de linha
 
 ## Instalação
 
@@ -19,180 +19,98 @@ Conversor de Markdown estilo GitHub para MarkdownV2 do Telegram, com suporte a:
 go get github.com/sshturbo/GoTeleMD@latest
 ```
 
-
-## Configurações
-
-### Variáveis Globais
-- `EnableLogs`: ativa logs de debug (default: false)
-
-### Níveis de Segurança
-- `SAFETYLEVELNONE`: sem escape de caracteres especiais
-- `SAFETYLEVELBASIC`: escape básico mantendo formatação (padrão)
-- `SAFETYLEVELSTRICT`: escape completo sem formatação
-
-## Exemplos
-
-### Tabelas
-```go
-texto := `| Nome  | Idade |
-|:------:|------:|
-| João   | 25    |
-| Maria  | 30    |`
-
-// Tabela com alinhamento (centro para Nome, direita para Idade)
-resultado := GoTeleMD.Convert(texto, true, false, GoTeleMD.SAFETYLEVELBASIC)
-```
-
-### Listas
-```go
-texto := `- Item não numerado
-- Outro item
-1. Item numerado
-2. Outro numerado`
-resultado := GoTeleMD.Convert(texto, false, false, GoTeleMD.SAFETYLEVELBASIC)
-```
-
-### Citações
-```go
-texto := `> Uma citação simples
-> Com **formatação** em _markdown_`
-resultado := GoTeleMD.Convert(texto, false, false, GoTeleMD.SAFETYLEVELBASIC)
-```
-
-### Links com Formatação
-```go
-texto := `[Link com **negrito** e _itálico_](https://exemplo.com)`
-resultado := GoTeleMD.Convert(texto, false, false, GoTeleMD.SAFETYLEVELBASIC)
-```
-
-### Código
-```go
-texto := "Código `inline` e bloco:\n```go\nfmt.Println(\"olá\")\n```"
-resultado := GoTeleMD.Convert(texto, false, false, GoTeleMD.SAFETYLEVELBASIC)
-```
-
-### Formatação
-```go
-texto := "**Negrito** _itálico_ ~~riscado~~ [link](https://exemplo.com)"
-resultado := GoTeleMD.Convert(texto, false, false, GoTeleMD.SAFETYLEVELBASIC)
-```
-
-### Mensagens Longas
-A biblioteca quebra automaticamente mensagens longas respeitando o limite do Telegram:
+## Uso Rápido
 
 ```go
-textoLongo := strings.Repeat("Texto muito longo... ", 100)
-response := GoTeleMD.Convert(textoLongo, false, false, GoTeleMD.SAFETYLEVELBASIC)
-// Resultado será quebrado em partes menores que 4096 caracteres
-```
+package main
 
-### Exemplo uso
-Exemplo completo de como enviar mensagens longas divididas em partes:
-
-```go
 import (
-    "log"
-    "time"
-    tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-    GoTeleMD "github.com/sshturbo/GoTeleMD@latest"
+    "fmt"
+    "github.com/sshturbo/GoTeleMD"
     "github.com/sshturbo/GoTeleMD/pkg/types"
 )
 
-func init() {
-    GoTeleMD.EnableLogs = true
-}
-
-// Função para enviar uma única mensagem
-func enviarMensagem(bot *tgbotapi.BotAPI, chatID int64, texto string) error {
-    msg := tgbotapi.NewMessage(chatID, texto)
-    msg.ParseMode = "MarkdownV2"
-
-    _, err := bot.Send(msg)
-    if err != nil {
-        log.Printf("❌ Erro ao enviar mensagem: %v", err)
-        return err
-    }
-    return nil
-}
-
-// Função para enviar mensagem dividida em partes
-func enviarMensagemEmPartes(bot *tgbotapi.BotAPI, chatID int64, msgResponse GoTeleMD.MessageResponse) error {
-    log.Printf("📨 Iniciando envio de mensagem em %d partes (ID: %s)...",
-        msgResponse.TotalParts, msgResponse.MessageID)
-
-    for _, parte := range msgResponse.Parts {
-        log.Printf("📤 Enviando parte %d/%d...", parte.Part, msgResponse.TotalParts)
-
-        msg := tgbotapi.NewMessage(chatID, parte.Content)
-        msg.ParseMode = "MarkdownV2"
-
-        _, err := bot.Send(msg)
-        if err != nil {
-            log.Printf("❌ Erro ao enviar parte %d: %v", parte.Part, err)
-            return err
-        }
-
-        // Aguarda entre cada parte para evitar rate limiting
-        if parte.Part < msgResponse.TotalParts {
-            time.Sleep(500 * time.Millisecond)
-        }
-    }
-    return nil
-}
-
 func main() {
-    // Configuração do bot
-    bot, err := tgbotapi.NewBotAPI("SEU_TOKEN_AQUI")
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    // Texto longo para enviar
-    textoLongo := `# Título Grande
-    
-Um texto muito longo com **formatação** em _markdown_...
-    
-## Código de Exemplo
-    
-\`\`\`go
-func exemplo() {
-    fmt.Println("Olá, mundo!")
-}
-\`\`\`
-`
-    // Converte o texto usando a lib
-    response := GoTeleMD.Convert(
-        textoLongo,
-        false,          // alignTableCols
-        false,          // ignoreTableSeparators
-        GoTeleMD.SAFETYLEVELBASIC,
+    // Criar um conversor com configurações personalizadas
+    converter := GoTeleMD.NewConverter(
+        types.WithSafetyLevel(GoTeleMD.SAFETYLEVELBASIC),
+        types.WithMaxMessageLength(4096),
+        types.WithDebugLogs(true), // Ativa logs detalhados
     )
 
-    // Verifica se precisa enviar em partes
-    chatID := int64(123456789) // ID do chat/grupo/canal
-    if response.TotalParts <= 1 {
-        // Mensagem única
-        err = enviarMensagem(bot, chatID, response.Parts[0].Content)
-    } else {
-        // Múltiplas partes
-        err = enviarMensagemEmPartes(bot, chatID, response)
+    // Converter markdown
+    response, err := converter.Convert("# Título\nTexto em **negrito** e _itálico_")
+    if err != nil {
+        panic(err)
     }
 
-    if err != nil {
-        log.Fatalf("❌ Erro no processo de envio: %v", err)
+    // Usar as partes convertidas
+    for _, part := range response.Parts {
+        fmt.Printf("Parte %d: %s\n", part.Part, part.Content)
     }
 }
 ```
 
-Este exemplo mostra:
-- Como converter textos longos usando a biblioteca
-- Como tratar o envio de mensagens únicas e múltiplas partes
-- Como implementar delay entre as partes para evitar rate limiting do Telegram
-- Como usar o modo MarkdownV2 corretamente
-- Como tratar erros durante o envio
+## Configurações Disponíveis
 
-**Importante:**
-- Use `time.Sleep(500 * time.Millisecond)` entre as partes para evitar rate limiting
-- Sempre verifique `response.TotalParts` para decidir o método de envio
-- Use `msg.ParseMode = "MarkdownV2"` para formatação correta
-- Trate os erros de envio adequadamente
+- `WithSafetyLevel(level int)`: Define o nível de segurança da conversão
+  - `SAFETYLEVELNONE`: Sem escape de caracteres especiais
+  - `SAFETYLEVELBASIC`: Escape básico mantendo formatação
+  - `SAFETYLEVELSTRICT`: Escape completo sem formatação
+
+- `WithMaxMessageLength(length int)`: Define tamanho máximo de mensagem (padrão: 4096)
+- `WithDebugLogs(enable bool)`: Ativa/desativa logs detalhados de debug
+  - Mostra informações sobre o processo de conversão
+  - Exibe estrutura JSON das mensagens
+  - Fornece métricas de tempo e tamanho
+  - Detalha cada bloco processado
+
+## Sistema de Logs
+
+Quando ativado com `WithDebugLogs(true)`, o sistema de logs mostra:
+
+- 📊 Configurações utilizadas
+- 📝 Texto original recebido
+- 📦 Estrutura da divisão em partes (JSON)
+- 🔍 Detalhes do processamento de cada parte
+- 📤 Conteúdo formatado de cada parte
+- ✅ Resumo final da conversão
+
+## Elementos Suportados
+
+- Títulos (H1-H6)
+- Texto em negrito e itálico
+- Links
+- Listas ordenadas e não ordenadas
+- Blocos de código (com e sem highlight)
+- Tabelas (com alinhamento)
+- Citações
+- Texto riscado
+
+## Tratamento de Erros
+
+A biblioteca fornece tipos de erro específicos para melhor tratamento:
+
+```go
+switch err := err.(type) {
+case *types.Error:
+    switch err.Type {
+    case types.ErrInvalidInput:
+        // Tratar erro de entrada inválida
+    case types.ErrInvalidFormat:
+        // Tratar erro de formato
+    case types.ErrMessageTooLong:
+        // Tratar erro de mensagem muito longa
+    case types.ErrProcessingFailed:
+        // Tratar erro de processamento
+    }
+}
+```
+
+## Contribuindo
+
+Contribuições são bem-vindas! Por favor, leia nossas diretrizes de contribuição antes de submeter pull requests.
+
+## Licença
+
+Este projeto está licenciado sob a MIT License - veja o arquivo LICENSE para detalhes.

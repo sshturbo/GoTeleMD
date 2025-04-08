@@ -135,17 +135,18 @@ func BreakLongText(input string) types.MessageResponse {
 
 	// Verifica se um bloco deve iniciar uma nova parte
 	shouldStartNewPart := func(block internal.Block, nextBlock *internal.Block) bool {
-		if block.Type == internal.BlockCode {
-			// Blocos de código sempre começam uma nova parte
+		// Se o bloco atual é um título e o próximo bloco existe,
+		// mantenha-os juntos a menos que exceda muito o limite
+		if block.Type == internal.BlockTitle && nextBlock != nil {
+			return currentLength > int(float64(effectiveLimit)*1.5) // Corrigido a conversão float para int
+		}
+
+		// Se é um bloco de código grande, cria uma nova parte
+		if block.Type == internal.BlockCode && utf8.RuneCountInString(block.Content) > effectiveLimit/2 {
 			return true
 		}
 
-		if nextBlock != nil && nextBlock.Type == internal.BlockCode {
-			// Se o próximo bloco é código, termina a parte atual
-			return true
-		}
-
-		// Para outros tipos de blocos, só divide se ultrapassar o limite
+		// Para outros tipos de blocos, só divide se realmente necessário
 		return currentLength > effectiveLimit
 	}
 
@@ -158,17 +159,59 @@ func BreakLongText(input string) types.MessageResponse {
 		var groupContent strings.Builder
 		for i, block := range currentGroup {
 			if i > 0 {
-				// Adiciona separadores apropriados entre blocos
+				// Garante quebra de linha dupla entre blocos diferentes
 				if block.Type == internal.BlockTitle {
-					// Título fica junto com o conteúdo seguinte
 					groupContent.WriteString("\n\n")
-				} else if block.Type != internal.BlockCode && currentGroup[i-1].Type != internal.BlockCode {
+				} else if block.Type == internal.BlockCode {
+					// Garante que blocos de código tenham quebras de linha adequadas
+					if currentGroup[i-1].Type != internal.BlockCode {
+						groupContent.WriteString("\n\n")
+					}
+				} else if currentGroup[i-1].Type == internal.BlockCode {
+					groupContent.WriteString("\n\n")
+				} else {
 					groupContent.WriteString("\n\n")
 				}
 			}
-			groupContent.WriteString(block.Content)
+
+			// Adiciona o conteúdo do bloco
+			if block.Type == internal.BlockCode {
+				// Garante que blocos de código tenham suas próprias linhas
+				content := strings.TrimSpace(block.Content)
+				if !strings.HasPrefix(content, "```") {
+					content = "```\n" + content + "\n```"
+				}
+				groupContent.WriteString(content)
+			} else {
+				groupContent.WriteString(block.Content)
+			}
 		}
-		parts = append(parts, groupContent.String())
+
+		content := groupContent.String()
+		// Só cria uma nova parte se o conteúdo não for muito pequeno
+		if utf8.RuneCountInString(content) > 50 { // Threshold mínimo
+			parts = append(parts, content)
+		} else {
+			// Se for muito pequeno, tenta combinar com a parte anterior
+			if len(parts) > 0 {
+				lastPart := parts[len(parts)-1]
+				// Garante quebra de linha dupla entre partes diferentes
+				if !strings.HasSuffix(lastPart, "\n") {
+					lastPart += "\n"
+				}
+				if !strings.HasPrefix(content, "\n") {
+					content = "\n" + content
+				}
+				combinedContent := lastPart + "\n" + content
+
+				if utf8.RuneCountInString(combinedContent) <= effectiveLimit {
+					parts[len(parts)-1] = combinedContent
+					return
+				}
+			}
+			parts = append(parts, content)
+		}
+
 		currentGroup = nil
 		currentLength = 0
 	}

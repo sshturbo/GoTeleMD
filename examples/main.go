@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
 	"os"
 	"time"
@@ -18,6 +17,7 @@ func init() {
 // enviarMensagem envia uma única mensagem para o Telegram
 func enviarMensagem(bot *tgbotapi.BotAPI, chatID int64, texto string) error {
 	log.Printf("📤 Enviando mensagem única...")
+	log.Printf("📝 Conteúdo da mensagem:\n%s", texto)
 	msg := tgbotapi.NewMessage(chatID, texto)
 	msg.ParseMode = "MarkdownV2"
 
@@ -38,6 +38,7 @@ func enviarMensagemEmPartes(bot *tgbotapi.BotAPI, chatID int64, msgResponse type
 
 	for _, parte := range msgResponse.Parts {
 		log.Printf("📤 Enviando parte %d/%d...", parte.Part, msgResponse.TotalParts)
+		log.Printf("📝 Conteúdo da parte %d:\n%s", parte.Part, parte.Content)
 
 		msg := tgbotapi.NewMessage(chatID, parte.Content)
 		msg.ParseMode = "MarkdownV2"
@@ -75,11 +76,11 @@ func main() {
 	)
 
 	// Log do JSON para debug
-	jsonBytes, err := json.MarshalIndent(response, "", "  ")
+	/*jsonBytes, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
 		log.Fatalf("❌ Erro ao gerar JSON: %v", err)
 	}
-	log.Printf("📋 Resposta da lib:\n%s", string(jsonBytes))
+	log.Printf("📋 Resposta da lib:\n%s", string(jsonBytes))*/
 
 	// Configuração do bot
 	const (

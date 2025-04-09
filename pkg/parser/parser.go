@@ -11,6 +11,14 @@ import (
 	"github.com/sshturbo/GoTeleMD/pkg/utils"
 )
 
+// Constantes para gerenciamento de tamanho
+const (
+	// Margem de segurança para caracteres de escape e formatação
+	safetyMargin = 256
+	// Tamanho mínimo para tentar manter em cada parte
+	minPartSize = 512
+)
+
 func generateMessageID() string {
 	b := make([]byte, 8)
 	rand.Read(b)
@@ -113,9 +121,11 @@ func BreakLongText(input string, maxLength int) (types.MessageResponse, error) {
 		maxLength = internal.TelegramMaxLength
 	}
 
-	blocks := Tokenize(input)
+	// Ajusta o tamanho máximo considerando a margem de segurança
+	effectiveMaxLength := maxLength - safetyMargin
 
-	if totalLen := utf8.RuneCountInString(input); totalLen <= maxLength {
+	// Se o texto completo é menor que o limite, retorna uma única parte
+	if totalLen := utf8.RuneCountInString(input); totalLen <= effectiveMaxLength {
 		return types.MessageResponse{
 			MessageID:  generateMessageID(),
 			TotalParts: 1,
@@ -128,148 +138,156 @@ func BreakLongText(input string, maxLength int) (types.MessageResponse, error) {
 		}, nil
 	}
 
-	var parts []string
-	var currentGroup []internal.Block
-	var currentLength int
+	// Divide o texto em blocos mantendo a ordem
+	blocks := Tokenize(input)
+	var parts []types.MessagePart
+	var currentPart strings.Builder
+	currentPartSize := 0
+	partNumber := 1
 
-	shouldStartNewPart := func(block internal.Block, nextBlock *internal.Block) bool {
-		if block.Type == internal.BlockTitle && nextBlock != nil {
-			return currentLength > int(float64(maxLength)*1.5)
+	// Função para finalizar a parte atual
+	flushCurrentPart := func() {
+		if currentPart.Len() > 0 {
+			content := strings.TrimSpace(currentPart.String())
+			if len(content) > 0 {
+				parts = append(parts, types.MessagePart{
+					Part:    partNumber,
+					Content: content,
+				})
+				partNumber++
+				currentPart.Reset()
+				currentPartSize = 0
+			}
 		}
-
-		if block.Type == internal.BlockCode && utf8.RuneCountInString(block.Content) > maxLength/2 {
-			return true
-		}
-
-		return currentLength > maxLength
 	}
 
-	processGroup := func() error {
-		if len(currentGroup) == 0 {
-			return nil
-		}
+	for i, block := range blocks {
+		blockContent := block.Content
+		blockSize := utf8.RuneCountInString(blockContent)
 
-		var groupContent strings.Builder
-		for i, block := range currentGroup {
-			if i > 0 {
-				if block.Type == internal.BlockTitle {
-					groupContent.WriteString("\n\n")
-				} else if block.Type == internal.BlockCode {
-					if currentGroup[i-1].Type != internal.BlockCode {
-						groupContent.WriteString("\n\n")
-					}
-				} else if currentGroup[i-1].Type == internal.BlockCode {
-					groupContent.WriteString("\n\n")
-				} else {
-					groupContent.WriteString("\n\n")
-				}
-			}
+		// Se o bloco é maior que o limite efetivo, divide ele
+		if blockSize > effectiveMaxLength {
+			// Primeiro, finaliza a parte atual se houver conteúdo
+			flushCurrentPart()
 
+			// Divide o bloco grande em partes menores
 			if block.Type == internal.BlockCode {
-				content := strings.TrimSpace(block.Content)
-				if !strings.HasPrefix(content, "```") {
-					content = "```\n" + content + "\n```"
+				codeParts, err := divideCodeBlock(blockContent, effectiveMaxLength)
+				if err != nil {
+					return types.MessageResponse{}, err
 				}
-				groupContent.WriteString(content)
+				for _, codePart := range codeParts {
+					parts = append(parts, types.MessagePart{
+						Part:    partNumber,
+						Content: codePart,
+					})
+					partNumber++
+				}
 			} else {
-				groupContent.WriteString(block.Content)
-			}
-		}
-
-		content := groupContent.String()
-		if utf8.RuneCountInString(content) > maxLength {
-			return types.NewError(types.ErrMessageTooLong, "content exceeds maximum length", nil)
-		}
-
-		if utf8.RuneCountInString(content) > 50 {
-			parts = append(parts, content)
-		} else {
-			if len(parts) > 0 {
-				lastPart := parts[len(parts)-1]
-				if !strings.HasSuffix(lastPart, "\n") {
-					lastPart += "\n"
+				textParts, err := divideContent(blockContent, effectiveMaxLength)
+				if err != nil {
+					return types.MessageResponse{}, err
 				}
-				if !strings.HasPrefix(content, "\n") {
-					content = "\n" + content
-				}
-				combinedContent := lastPart + "\n" + content
-
-				if utf8.RuneCountInString(combinedContent) <= maxLength {
-					parts[len(parts)-1] = combinedContent
-					return nil
+				for _, textPart := range textParts {
+					parts = append(parts, types.MessagePart{
+						Part:    partNumber,
+						Content: textPart,
+					})
+					partNumber++
 				}
 			}
-			parts = append(parts, content)
-		}
-
-		currentGroup = nil
-		currentLength = 0
-		return nil
-	}
-
-	for i := 0; i < len(blocks); i++ {
-		block := blocks[i]
-		nextBlock := (*internal.Block)(nil)
-		if i+1 < len(blocks) {
-			nextBlock = &blocks[i+1]
-		}
-
-		blockLength := utf8.RuneCountInString(block.Content)
-
-		if block.Type == internal.BlockCode && blockLength > maxLength {
-			if err := processGroup(); err != nil {
-				return types.MessageResponse{}, err
-			}
-			codeParts, err := divideCodeBlock(block.Content, maxLength)
-			if err != nil {
-				return types.MessageResponse{}, err
-			}
-			parts = append(parts, codeParts...)
 			continue
 		}
 
-		additionalLength := blockLength
-		if len(currentGroup) > 0 {
-			additionalLength += 2
+		// Calcula o tamanho necessário incluindo separadores
+		neededSize := blockSize
+		if currentPartSize > 0 {
+			neededSize += 2 // Para \n\n entre blocos
 		}
 
-		if shouldStartNewPart(block, nextBlock) {
-			if err := processGroup(); err != nil {
-				return types.MessageResponse{}, err
-			}
-			if block.Type == internal.BlockCode {
-				parts = append(parts, block.Content)
-				continue
-			}
+		// Se adicionar este bloco excederia o limite, inicia uma nova parte
+		if currentPartSize+neededSize > effectiveMaxLength {
+			flushCurrentPart()
 		}
 
-		if currentLength+additionalLength > maxLength {
-			if err := processGroup(); err != nil {
-				return types.MessageResponse{}, err
+		// Adiciona o bloco à parte atual
+		if currentPart.Len() > 0 {
+			if block.Type == internal.BlockCode || blocks[i-1].Type == internal.BlockCode {
+				currentPart.WriteString("\n\n")
+			} else if block.Type == internal.BlockTitle || (i > 0 && blocks[i-1].Type == internal.BlockTitle) {
+				currentPart.WriteString("\n\n")
+			} else if block.Type == internal.BlockList || (i > 0 && blocks[i-1].Type == internal.BlockList) {
+				currentPart.WriteString("\n\n")
+			} else {
+				currentPart.WriteString("\n\n")
 			}
+			currentPartSize += 2
 		}
 
-		currentGroup = append(currentGroup, block)
-		currentLength += additionalLength
+		currentPart.WriteString(blockContent)
+		currentPartSize += blockSize
 	}
 
-	if err := processGroup(); err != nil {
-		return types.MessageResponse{}, err
-	}
-
-	messageParts := make([]types.MessagePart, len(parts))
-	for i, content := range parts {
-		messageParts[i] = types.MessagePart{
-			Part:    i + 1,
-			Content: strings.TrimSpace(content),
-		}
-	}
+	// Finaliza a última parte
+	flushCurrentPart()
 
 	return types.MessageResponse{
 		MessageID:  generateMessageID(),
-		TotalParts: len(messageParts),
-		Parts:      messageParts,
+		TotalParts: len(parts),
+		Parts:      parts,
 	}, nil
+}
+
+// divideContent divide um conteúdo grande em partes menores
+func divideContent(content string, maxLength int) ([]string, error) {
+	var parts []string
+	lines := strings.Split(content, "\n")
+	var currentPart strings.Builder
+	currentLength := 0
+
+	flushPart := func() {
+		if currentPart.Len() > 0 {
+			parts = append(parts, strings.TrimSpace(currentPart.String()))
+			currentPart.Reset()
+			currentLength = 0
+		}
+	}
+
+	for _, line := range lines {
+		lineLength := utf8.RuneCountInString(line)
+
+		// Se a linha é maior que o limite, divide ela
+		if lineLength > maxLength {
+			flushPart()
+
+			// Divide a linha em partes menores
+			runes := []rune(line)
+			for i := 0; i < len(runes); i += maxLength {
+				end := i + maxLength
+				if end > len(runes) {
+					end = len(runes)
+				}
+				parts = append(parts, string(runes[i:end]))
+			}
+			continue
+		}
+
+		// Se adicionar esta linha excederia o limite
+		if currentLength+lineLength+2 > maxLength {
+			flushPart()
+		}
+
+		// Adiciona a linha à parte atual
+		if currentPart.Len() > 0 {
+			currentPart.WriteString("\n")
+			currentLength += 1
+		}
+		currentPart.WriteString(line)
+		currentLength += lineLength
+	}
+
+	flushPart()
+	return parts, nil
 }
 
 func divideCodeBlock(content string, maxLength int) ([]string, error) {

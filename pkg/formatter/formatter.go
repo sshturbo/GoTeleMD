@@ -8,6 +8,140 @@ import (
 	"github.com/sshturbo/GoTeleMD/pkg/utils"
 )
 
+// isBalancedFormatting verifica se os caracteres de formatação estão balanceados
+func isBalancedFormatting(text string, char string) bool {
+	count := 0
+	escaped := false
+	for _, r := range text {
+		c := string(r)
+		if c == "\\" {
+			escaped = !escaped
+			continue
+		}
+		if !escaped && c == char {
+			count++
+		}
+		escaped = false
+	}
+	return count%2 == 0
+}
+
+// findUnbalancedFormatting encontra posições de caracteres de formatação não balanceados
+func findUnbalancedFormatting(text string) map[string][]int {
+	unbalanced := make(map[string][]int)
+	formatChars := []string{"*", "_", "~", "`"}
+
+	for _, char := range formatChars {
+		var stack []int
+		escaped := false
+
+		for i, r := range text {
+			c := string(r)
+			if c == "\\" {
+				escaped = !escaped
+				continue
+			}
+			if !escaped && c == char {
+				if len(stack) > 0 {
+					stack = stack[:len(stack)-1] // Remove posição pareada
+				} else {
+					stack = append(stack, i) // Adiciona posição não pareada
+				}
+			}
+			escaped = false
+		}
+
+		if len(stack) > 0 {
+			unbalanced[char] = stack
+		}
+	}
+
+	return unbalanced
+}
+
+func escapeSpecialChars(text string) string {
+	escaped := text
+	specialChars := []string{"[", "]", "(", ")", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"}
+
+	// Primeiro escapa as barras invertidas
+	escaped = strings.ReplaceAll(escaped, "\\", "\\\\")
+
+	// Depois escapa os caracteres especiais não relacionados à formatação
+	for _, char := range specialChars {
+		escaped = strings.ReplaceAll(escaped, char, "\\"+char)
+	}
+
+	// Por fim, trata os caracteres de formatação
+	formatChars := []string{"*", "_", "~", "`"}
+	for _, char := range formatChars {
+		if !isBalancedFormatting(text, char) {
+			// Se não estiver balanceado, escapa todas as ocorrências
+			escaped = strings.ReplaceAll(escaped, char, "\\"+char)
+		}
+	}
+
+	return escaped
+}
+
+func escapeNonFormatChars(text string) string {
+	var result strings.Builder
+	result.Grow(len(text) * 2)
+
+	// Encontra caracteres de formatação não balanceados
+	unbalanced := findUnbalancedFormatting(text)
+
+	specialChars := []string{"#", "+", "-", "=", "|", ".", "!", "(", ")", "{", "}"}
+	escaped := false
+
+	for i, r := range text {
+		c := string(r)
+
+		if c == "\\" {
+			escaped = !escaped
+			result.WriteString(c)
+			continue
+		}
+
+		if escaped {
+			result.WriteString(c)
+			escaped = false
+			continue
+		}
+
+		// Verifica se é um caractere de formatação
+		if c == "*" || c == "_" || c == "~" || c == "`" {
+			// Se a posição atual está na lista de não balanceados, escapa
+			if positions, exists := unbalanced[c]; exists {
+				isUnbalanced := false
+				for _, pos := range positions {
+					if pos == i {
+						isUnbalanced = true
+						break
+					}
+				}
+				if isUnbalanced {
+					result.WriteString("\\")
+				}
+			}
+			result.WriteString(c)
+			continue
+		}
+
+		// Escapa caracteres especiais não relacionados à formatação
+		for _, special := range specialChars {
+			if c == special {
+				result.WriteString("\\")
+				break
+			}
+		}
+
+		result.WriteString(c)
+		escaped = false
+	}
+
+	return result.String()
+}
+
 func ProcessText(input string, safetyLevel int) string {
 	if safetyLevel == internal.SAFETYLEVELSTRICT {
 		return escapeSpecialChars(input)
@@ -107,54 +241,6 @@ func ProcessInlineFormatting(text string) string {
 	})
 
 	return text
-}
-
-func escapeSpecialChars(text string) string {
-	escaped := text
-	specialChars := []string{"_", "*", "[", "]", "(", ")", "~", "`", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"}
-	for _, char := range specialChars {
-		escaped = strings.ReplaceAll(escaped, char, "\\"+char)
-	}
-	return escaped
-}
-
-func escapeNonFormatChars(text string) string {
-	var result strings.Builder
-	lastIndex := 0
-
-	for _, match := range utils.LinkPattern.FindAllStringSubmatchIndex(text, -1) {
-		prefix := text[lastIndex:match[0]]
-		result.WriteString(escapeSpecialCharsInText(prefix))
-
-		linkTextStart, linkTextEnd := match[2], match[3]
-		urlStart, urlEnd := match[4], match[5]
-
-		linkText := text[linkTextStart:linkTextEnd]
-		url := text[urlStart:urlEnd]
-
-		result.WriteString("[")
-		result.WriteString(linkText)
-		result.WriteString("](")
-		result.WriteString(url)
-		result.WriteString(")")
-
-		lastIndex = match[1]
-	}
-
-	if lastIndex < len(text) {
-		result.WriteString(escapeSpecialCharsInText(text[lastIndex:]))
-	}
-
-	return result.String()
-}
-
-func escapeSpecialCharsInText(text string) string {
-	escaped := text
-	specialChars := []string{"#", "+", "-", "_", "=", "|", ".", "!", "(", ")", "{", "}"}
-	for _, char := range specialChars {
-		escaped = strings.ReplaceAll(escaped, char, "\\"+char)
-	}
-	return escaped
 }
 
 func ProcessTitle(input string, safetyLevel int) string {

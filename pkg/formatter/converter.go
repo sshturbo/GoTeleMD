@@ -196,21 +196,24 @@ func ConvertMarkdown(input string, config *types.Config) (string, error) {
 				}
 			}
 
-			
 			var output strings.Builder
 			output.Grow(len(part.Content))
 
 			for i := 0; i < len(blocks); i++ {
 				if i > 0 {
-					if blocks[i].Type == internal.BlockTitle || blocks[i-1].Type == internal.BlockTitle {
+					if blocks[i].Type == internal.BlockCode {
 						output.WriteString("\n\n")
-					} else if blocks[i].Type == internal.BlockCode || blocks[i-1].Type == internal.BlockCode {
+					} else if blocks[i-1].Type == internal.BlockCode {
+						output.WriteString("\n\n")
+					} else if blocks[i].Type == internal.BlockTitle || blocks[i-1].Type == internal.BlockTitle {
 						output.WriteString("\n\n")
 					} else if blocks[i].Type == internal.BlockList || blocks[i-1].Type == internal.BlockList {
 						output.WriteString("\n\n")
 					} else {
 						output.WriteString("\n\n")
 					}
+				} else if blocks[i].Type == internal.BlockCode {
+					output.WriteString("\n\n")
 				}
 				output.WriteString(results[i])
 			}

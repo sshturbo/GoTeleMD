@@ -2,6 +2,7 @@ package formatter
 
 import (
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/sshturbo/GoTeleMD/pkg/utils"
@@ -152,13 +153,43 @@ func formatTableRow(columns []string, align bool) string {
 	// Escapa os caracteres | em cada coluna
 	escapedColumns := make([]string, len(columns))
 	for i, col := range columns {
-		escapedColumns[i] = strings.ReplaceAll(col, "|", "\\|")
+		// Primeiro escapa os pontos no conteúdo
+		escapedCol := col
+		runes := []rune(escapedCol)
+		var result strings.Builder
+		lastWasDigit := false
+
+		for i, r := range runes {
+			if unicode.IsDigit(r) {
+				lastWasDigit = true
+				result.WriteRune(r)
+				continue
+			}
+
+			if string(r) == "." {
+				if lastWasDigit && i+1 < len(runes) && unicode.IsDigit(runes[i+1]) {
+					result.WriteRune(r)
+				} else {
+					result.WriteString("\\.")
+				}
+			} else {
+				result.WriteRune(r)
+			}
+			lastWasDigit = false
+		}
+
+		escapedCol = result.String()
+		// Depois escapa os pipes
+		escapedCol = strings.ReplaceAll(escapedCol, "|", "\\|")
+		escapedColumns[i] = escapedCol
 	}
 
-	if align {
-		return strings.TrimSpace("•  " + strings.Join(escapedColumns, " \\| "))
+	prefix := "\\•  "
+	if !align {
+		prefix = "\\• "
 	}
-	return strings.TrimSpace("• " + strings.Join(escapedColumns, " \\| "))
+
+	return strings.TrimSpace(prefix + strings.Join(escapedColumns, " \\| "))
 }
 
 func parseTableAlignment(line string) []string {

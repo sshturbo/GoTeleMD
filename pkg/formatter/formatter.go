@@ -2,7 +2,9 @@ package formatter
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/sshturbo/GoTeleMD/internal"
 	"github.com/sshturbo/GoTeleMD/pkg/utils"
@@ -61,14 +63,19 @@ func findUnbalancedFormatting(text string) map[string][]int {
 
 func escapeSpecialChars(text string) string {
 	escaped := text
-	specialChars := []string{"[", "]", "(", ")", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"}
+	specialChars := []string{"[", "]", "(", ")", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!", "\\."}
 
 	// Primeiro escapa as barras invertidas
 	escaped = strings.ReplaceAll(escaped, "\\", "\\\\")
 
 	// Depois escapa os caracteres especiais não relacionados à formatação
 	for _, char := range specialChars {
-		escaped = strings.ReplaceAll(escaped, char, "\\"+char)
+		if char == "\\." {
+			// Trata especialmente o ponto para não escapar dentro de números
+			escaped = regexp.MustCompile(`(\d*?)\.(\d+)`).ReplaceAllString(escaped, "${1}\\.${2}")
+		} else {
+			escaped = strings.ReplaceAll(escaped, char, "\\"+char)
+		}
 	}
 
 	// Por fim, trata os caracteres de formatação
@@ -92,6 +99,7 @@ func escapeNonFormatChars(text string) string {
 
 	specialChars := []string{"#", "+", "-", "=", "|", ".", "!", "(", ")", "{", "}"}
 	escaped := false
+	lastWasDigit := false
 
 	for i, r := range text {
 		c := string(r)
@@ -99,12 +107,14 @@ func escapeNonFormatChars(text string) string {
 		if c == "\\" {
 			escaped = !escaped
 			result.WriteString(c)
+			lastWasDigit = false
 			continue
 		}
 
 		if escaped {
 			result.WriteString(c)
 			escaped = false
+			lastWasDigit = unicode.IsDigit(r)
 			continue
 		}
 
@@ -124,12 +134,24 @@ func escapeNonFormatChars(text string) string {
 				}
 			}
 			result.WriteString(c)
+			lastWasDigit = false
 			continue
 		}
 
 		// Escapa caracteres especiais não relacionados à formatação
 		for _, special := range specialChars {
 			if c == special {
+				// Não escapa o ponto se estiver entre dígitos
+				if c == "." && lastWasDigit {
+					nextIsDigit := false
+					if i+1 < len(text) {
+						nextRune := []rune(text)[i+1]
+						nextIsDigit = unicode.IsDigit(nextRune)
+					}
+					if nextIsDigit {
+						break
+					}
+				}
 				result.WriteString("\\")
 				break
 			}
@@ -137,6 +159,7 @@ func escapeNonFormatChars(text string) string {
 
 		result.WriteString(c)
 		escaped = false
+		lastWasDigit = unicode.IsDigit(r)
 	}
 
 	return result.String()
@@ -152,9 +175,15 @@ func ProcessText(input string, safetyLevel int) string {
 		for i := range parts {
 			if i%2 == 0 {
 				text := parts[i]
+
+				// Primeiro faz o processamento de formatação inline
 				text = ProcessInlineFormatting(text)
 				text = processLinks(text)
 
+				// Depois trata os pontos e outros caracteres especiais
+				text = processSpecialChars(text)
+
+				// Por fim, processa blocos de código inline
 				var result strings.Builder
 				lastIndex := 0
 				for _, match := range utils.InlineCodePattern.FindAllStringSubmatchIndex(text, -1) {
@@ -181,6 +210,49 @@ func ProcessText(input string, safetyLevel int) string {
 	text = ProcessInlineFormatting(text)
 	text = processLinks(text)
 	return text
+}
+
+func processSpecialChars(text string) string {
+	var result strings.Builder
+	runes := []rune(text)
+	lastWasDigit := false
+
+	for i := 0; i < len(runes); i++ {
+		r := runes[i]
+		c := string(r)
+
+		if unicode.IsDigit(r) {
+			lastWasDigit = true
+			result.WriteRune(r)
+			continue
+		}
+
+		// Escapa bullet point no início da linha
+		if c == "•" {
+			prevIsNewline := i == 0 || (i > 0 && string(runes[i-1]) == "\n")
+			if prevIsNewline {
+				result.WriteString("\\•")
+				continue
+			}
+		}
+
+		if c == "." {
+			// Verifica se é um ponto entre números (número decimal)
+			if lastWasDigit && i+1 < len(runes) && unicode.IsDigit(runes[i+1]) {
+				result.WriteRune(r)
+				continue
+			}
+
+			// Escapa o ponto em todas as outras situações
+			result.WriteString("\\.")
+		} else {
+			result.WriteRune(r)
+		}
+
+		lastWasDigit = false
+	}
+
+	return result.String()
 }
 
 func processLinks(text string) string {

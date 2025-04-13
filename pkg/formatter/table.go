@@ -194,9 +194,9 @@ func formatTableRow(columns []string, align bool) string {
 		escapedColumns[i] = escapedCol
 	}
 
-	prefix := "\\•  "
+	prefix := "•  "
 	if !align {
-		prefix = "\\• "
+		prefix = "• "
 	}
 
 	return strings.TrimSpace(prefix + strings.Join(escapedColumns, " \\| "))

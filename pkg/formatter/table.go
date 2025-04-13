@@ -152,6 +152,8 @@ func getAlignType(alignments []string, index int) string {
 func formatTableRow(columns []string, align bool) string {
 	// Escapa os caracteres | em cada coluna
 	escapedColumns := make([]string, len(columns))
+	specialChars := []string{"[", "]", "(", ")", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!", "\\"}
+
 	for i, col := range columns {
 		// Primeiro escapa os pontos no conteúdo
 		escapedCol := col
@@ -160,27 +162,35 @@ func formatTableRow(columns []string, align bool) string {
 		lastWasDigit := false
 
 		for i, r := range runes {
+			c := string(r)
+
 			if unicode.IsDigit(r) {
 				lastWasDigit = true
 				result.WriteRune(r)
 				continue
 			}
 
-			if string(r) == "." {
-				if lastWasDigit && i+1 < len(runes) && unicode.IsDigit(runes[i+1]) {
-					result.WriteRune(r)
-				} else {
-					result.WriteString("\\.")
+			isSpecial := false
+			for _, special := range specialChars {
+				if c == special {
+					if c == "." && lastWasDigit && i+1 < len(runes) && unicode.IsDigit(runes[i+1]) {
+						// Não escapa ponto entre números
+						isSpecial = false
+						break
+					}
+					result.WriteString("\\" + c)
+					isSpecial = true
+					break
 				}
-			} else {
+			}
+
+			if !isSpecial {
 				result.WriteRune(r)
 			}
 			lastWasDigit = false
 		}
 
 		escapedCol = result.String()
-		// Depois escapa os pipes
-		escapedCol = strings.ReplaceAll(escapedCol, "|", "\\|")
 		escapedColumns[i] = escapedCol
 	}
 

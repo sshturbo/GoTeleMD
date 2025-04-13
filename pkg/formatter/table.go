@@ -20,8 +20,35 @@ func ConvertTable(lines []string, align, ignoreSeparators bool) string {
 			continue
 		}
 
-		line = strings.Trim(line, "|")
-		cols := strings.Split(line, "|")
+		// Remove apenas os pipes das extremidades
+		line = strings.TrimSpace(line)
+		line = strings.TrimPrefix(line, "|")
+		line = strings.TrimSuffix(line, "|")
+
+		// Divide a linha considerando escapes
+		var cols []string
+		var currentCol strings.Builder
+		escaped := false
+
+		for _, char := range line {
+			if char == '\\' && !escaped {
+				escaped = true
+				continue
+			}
+
+			if char == '|' && !escaped {
+				cols = append(cols, currentCol.String())
+				currentCol.Reset()
+			} else {
+				if escaped && char != '|' {
+					currentCol.WriteRune('\\')
+				}
+				currentCol.WriteRune(char)
+				escaped = false
+			}
+		}
+		cols = append(cols, currentCol.String())
+
 		var clean []string
 		for _, col := range cols {
 			clean = append(clean, ProcessInlineFormatting(strings.TrimSpace(col)))
@@ -122,10 +149,16 @@ func getAlignType(alignments []string, index int) string {
 }
 
 func formatTableRow(columns []string, align bool) string {
-	if align {
-		return strings.TrimSpace("•  " + strings.Join(columns, " | "))
+	// Escapa os caracteres | em cada coluna
+	escapedColumns := make([]string, len(columns))
+	for i, col := range columns {
+		escapedColumns[i] = strings.ReplaceAll(col, "|", "\\|")
 	}
-	return strings.TrimSpace("• " + strings.Join(columns, " | "))
+
+	if align {
+		return strings.TrimSpace("•  " + strings.Join(escapedColumns, " \\| "))
+	}
+	return strings.TrimSpace("• " + strings.Join(escapedColumns, " \\| "))
 }
 
 func parseTableAlignment(line string) []string {
